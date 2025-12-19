@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  payment-frontend:
+    build: .
+    container_name: taken-payment-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - BACKEND_API_URL=${BACKEND_API_URL:-http://host.docker.internal:8005/api}
+      - PORT=3000
+    networks:
+      - taken-network
+    restart: unless-stopped
+
+networks:
+  taken-network:
+    driver: bridge

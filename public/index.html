@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taken Cafe - Payment</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        /* CSS STYLES */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f7f9fc; color: #333; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .container { background: white; width: 100%; max-width: 480px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        header { text-align: center; margin-bottom: 30px; }
+        h1 { margin: 0; font-size: 24px; color: #1a1f36; }
+        .subtitle { color: #697386; margin-top: 5px; font-size: 14px; }
+        
+        /* Order Summary */
+        .order-summary { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e6ebf1; }
+        .order-item { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+        .total-row { display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px; color: #697386; }
+        .total-row.final { font-weight: bold; font-size: 18px; color: #1a1f36; margin-top: 15px; border-top: 2px solid #e6ebf1; padding-top: 15px; }
+
+        /* Tip Section */
+        .tip-section { margin-bottom: 25px; }
+        .tip-buttons { display: flex; gap: 10px; margin-bottom: 15px; }
+        .tip-btn { flex: 1; padding: 10px; border: 1px solid #e6ebf1; background: white; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+        .tip-btn:hover { border-color: #5469d4; color: #5469d4; }
+        .tip-btn.active { background: #5469d4; color: white; border-color: #5469d4; }
+        input[type="number"] { width: 100%; padding: 10px; border: 1px solid #e6ebf1; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+
+        /* Payment Form */
+        #card-element { padding: 12px; border: 1px solid #e6ebf1; border-radius: 6px; background: white; margin-bottom: 20px; }
+        .pay-button { width: 100%; padding: 12px; background: #5469d4; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .pay-button:hover { background: #4456b3; }
+        .pay-button:disabled { background: #aab7c4; cursor: not-allowed; }
+
+        /* Status Messages */
+        .error-message { color: #cd3d64; background: #fff1f3; padding: 15px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; display: none; text-align: center; }
+        .success-message { color: #0d6efd; text-align: center; display: none; }
+        .success-icon { font-size: 48px; margin-bottom: 15px; }
+        .loading-spinner { text-align: center; color: #697386; font-size: 14px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>☕ Taken Cafe</h1>
+        <p class="subtitle">Secure Checkout</p>
+    </header>
+
+    <div id="error-container" class="error-message"></div>
+
+    <div id="checkout-view">
+        <section class="order-summary">
+            <div id="order-items-container">
+                <div class="loading-spinner">Loading order details...</div>
+            </div>
+            
+            <div id="totals-container" style="display: none;">
+                <div class="total-row"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
+                <div class="total-row"><span>Tip</span><span id="tip-amount">$0.00</span></div>
+                <div class="total-row final"><span>Total</span><span id="total-amount">$0.00</span></div>
+            </div>
+        </section>
+
+        <section class="tip-section" id="tip-section" style="display: none;">
+            <p style="font-size: 14px; font-weight: 500; margin-bottom: 10px;">Add a Tip</p>
+            <div class="tip-buttons">
+                <button class="tip-btn" onclick="setTip(0)">No</button>
+                <button class="tip-btn active" onclick="setTip(15)">15%</button>
+                <button class="tip-btn" onclick="setTip(20)">20%</button>
+                <button class="tip-btn" onclick="setTip(25)">25%</button>
+            </div>
+            <input type="number" id="custom-tip" placeholder="Custom tip amount ($)" oninput="setCustomTip(this.value)">
+        </section>
+
+        <section id="payment-section" style="display: none;">
+            <!-- Apple Pay / Google Pay Button -->
+            <div id="payment-request-button" style="margin-bottom: 20px;">
+                <!-- A Stripe Element will be inserted here. -->
+            </div>
+            
+            <div class="separator" style="text-align: center; margin: 20px 0; color: #697386; font-size: 14px; display: none;" id="payment-separator">
+                Or pay with card
+            </div>
+
+            <div id="card-element"></div>
+            <button id="pay-button" class="pay-button" onclick="handlePayment()">Pay Now</button>
+        </section>
+    </div>
+
+    <div id="success-view" class="success-message">
+        <div class="success-icon">🎉</div>
+        <h2>Payment Successful!</h2>
+        <p>Thank you for your order.</p>
+        <p id="receipt-info" style="font-size: 14px; color: #666; margin-top: 10px;"></p>
+        <button class="pay-button" onclick="location.reload()" style="margin-top: 20px;">New Order</button>
+    </div>
+</div>
+
+<script>
+    // ================= CONFIGURATION =================
+    // 1. Stripe Key
+    const STRIPE_KEY = 'pk_test_51SIqA4Ki3uNg2emjxfkokQEF9VXyUZjAAWo37jbWj9CMi0AhBJprVco0ZK3dIqeDBsvfHY1Ftz8SY1HV9o6xQONH0097lDkUkC';
+    
+    // 2. URL params
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // 3. Backend URL
+    // Prefer query param `backend_base_url`, fallback to localhost.
+    const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'http://localhost:8000';
+    
+    // 4. Get Order ID from URL or default to 6
+    const ORDER_ID = urlParams.get('order_id') || '6';
+    // =================================================
+
+    // State Variables
+    let stripe, elements, cardElement;
+    let currentOrder = null;
+    let currentTipPercent = 15;
+    let customTip = 0;
+
+    // Initialize App
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log(`🚀 Starting App. Connecting to: ${BACKEND_BASE_URL}`);
+        
+        try {
+            stripe = Stripe(STRIPE_KEY);
+            
+            // Step 1: Load the Order
+            await loadOrder();
+
+            // Step 2: Initialize Stripe Form
+            setupStripe();
+
+        } catch (error) {
+            showError(`Initialization Failed: ${error.message}`);
+        }
+    });
+
+    // --- FUNCTION: Load Order ---
+    async function loadOrder() {
+        try {
+            // CALLING: GET http://localhost:8000/api/orders/6
+            const res = await fetch(`${BACKEND_BASE_URL}/api/orders/${ORDER_ID}`);
+            
+            if (!res.ok) throw new Error(`Order API returned ${res.status}`);
+            
+            currentOrder = await res.json();
+            console.log("✅ Order Loaded:", currentOrder);
+            
+            renderOrderDetails();
+            updateTotals();
+
+            // Reveal UI
+            document.getElementById('tip-section').style.display = 'block';
+            document.getElementById('payment-section').style.display = 'block';
+
+        } catch (err) {
+            console.error(err);
+            throw new Error(`Could not load order. Is backend running on port 8000?`);
+        }
+    }
+
+    // --- FUNCTION: Setup Stripe ---
+    function setupStripe() {
+        elements = stripe.elements();
+        cardElement = elements.create('card', {
+            style: {
+                base: { fontSize: '16px', color: '#32325d', fontFamily: 'sans-serif', '::placeholder': { color: '#aab7c4' } }
+            }
+        });
+        cardElement.mount('#card-element');
+    }
+
+    // --- FUNCTION: Handle Payment ---
+    async function handlePayment() {
+        const btn = document.getElementById('pay-button');
+        btn.disabled = true;
+        btn.textContent = "Processing...";
+        document.getElementById('error-container').style.display = 'none';
+
+        try {
+            const totalAmount = getTotalAmount();
+
+            // 1. Create Payment Intent
+            // CALLING: POST http://localhost:8000/api/payments/intents
+            const tipAmount = (customTip > 0) ? customTip : (currentOrder.total_price * currentTipPercent / 100);
+
+            const intentRes = await fetch(`${BACKEND_BASE_URL}/api/payments/intents`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    order_id: parseInt(ORDER_ID),
+                    currency: 'USD',
+                    tip_amount: tipAmount
+                })
+            });
+
+            if (!intentRes.ok) {
+                const txt = await intentRes.text();
+                throw new Error(`Intent API Error: ${txt}`);
+            }
+
+            const intentData = await intentRes.json();
+            console.log("📦 Payment Intent Response:", intentData);
+            
+            // Extract both IDs from response
+            const clientSecret = intentData.client_secret;
+            
+            if (!clientSecret) {
+                throw new Error("No client_secret received from server. Response: " + JSON.stringify(intentData));
+            }
+
+            // Stripe client secrets look like: pi_XXX_secret_YYY
+            if (!clientSecret.includes('_secret_')) {
+                throw new Error(
+                    "Invalid Stripe client_secret returned by backend. Expected '*_secret_*' but got: " +
+                    JSON.stringify(clientSecret)
+                );
+            }
+            
+            console.log("🔑 Using Client Secret:", clientSecret.substring(0, 20) + "...");
+
+            // 2. Confirm Card Payment with Stripe
+            // Use client_secret which contains the payment intent reference
+            const result = await stripe.confirmCardPayment(clientSecret, {
+                payment_method: { card: cardElement }
+            });
+
+            if (result.error) {
+                throw new Error(result.error.message);
+            }
+
+            if (result.paymentIntent.status === 'succeeded') {
+                // 3. Record Success in Backend
+                await recordSuccess(result.paymentIntent, totalAmount);
+                showSuccess(totalAmount, result.paymentIntent.id);
+            }
+
+        } catch (error) {
+            console.error("Payment Error:", error);
+            showError(error.message);
+            btn.disabled = false;
+            btn.textContent = "Pay Now";
+        }
+    }
+
+    // --- FUNCTION: Get Payment Intent Details ---
+    async function getPaymentIntentDetails(paymentIntentId) {
+        try {
+            // CALLING: GET http://localhost:8000/api/payments/intents/{payment_intent_id}
+            const res = await fetch(`${BACKEND_BASE_URL}/api/payments/intents/${paymentIntentId}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!res.ok) {
+                console.warn(`Get Payment Intent API returned ${res.status}`);
+                return null;
+            }
+
+            const intentDetails = await res.json();
+            console.log("📋 Payment Intent Details:", intentDetails);
+            return intentDetails;
+
+        } catch (err) {
+            console.warn("Failed to retrieve payment intent details:", err);
+            return null;
+        }
+    }
+
+    // --- FUNCTION: Record Success ---
+    async function recordSuccess(paymentIntent, amount) {
+        try {
+            // Step 1: Fetch payment intent details from backend
+            const intentDetails = await getPaymentIntentDetails(paymentIntent.id);
+            
+            // Step 2: Log intent details for verification
+            if (intentDetails) {
+                console.log("💾 Intent Status:", intentDetails.status);
+                console.log("💾 Intent Amount:", intentDetails.amount);
+            }
+
+            // Step 3: Record payment in backend
+            // CALLING: POST http://localhost:8000/api/payments
+            await fetch(`${BACKEND_BASE_URL}/api/payments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    order_id: parseInt(ORDER_ID),
+                    payment_method: 'card',
+                    amount: currentOrder.total_price,
+                    tip_amount: amount - currentOrder.total_price,
+                    currency: 'USD'
+                })
+            });
+            console.log("✅ Payment recorded in backend");
+        } catch (err) {
+            console.warn("Payment succeeded in Stripe, but backend recording failed", err);
+        }
+    }
+
+    // --- HELPER: UI Logic ---
+    function renderOrderDetails() {
+        const container = document.getElementById('order-items-container');
+        if (!currentOrder.items || currentOrder.items.length === 0) {
+            container.innerHTML = '<p>No items in order.</p>';
+            return;
+        }
+        
+        let html = '';
+        currentOrder.items.forEach(item => {
+            html += `
+            <div class="order-item">
+                <span>${item.product_id} <span style="color:#8898aa">x${item.quantity}</span></span>
+                <span>$${item.price.toFixed(2)}</span>
+            </div>`;
+        });
+        container.innerHTML = html;
+        document.getElementById('totals-container').style.display = 'block';
+    }
+
+    function updateTotals() {
+        const subtotal = currentOrder.total_price;
+        const tip = (customTip > 0) ? customTip : (subtotal * currentTipPercent / 100);
+        const total = subtotal + tip;
+
+        document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+        document.getElementById('tip-amount').textContent = `$${tip.toFixed(2)}`;
+        document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
+    }
+
+    function getTotalAmount() {
+        const subtotal = currentOrder.total_price;
+        return (customTip > 0) ? (subtotal + customTip) : (subtotal + (subtotal * currentTipPercent / 100));
+    }
+
+    // --- HELPER: Tip Logic ---
+    window.setTip = function(percent) {
+        currentTipPercent = percent;
+        customTip = 0;
+        document.getElementById('custom-tip').value = '';
+        
+        // Update Buttons
+        document.querySelectorAll('.tip-btn').forEach(btn => {
+            if(btn.textContent.includes(percent + '%') || (percent===0 && btn.textContent==='No')) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        updateTotals();
+    }
+
+    window.setCustomTip = function(val) {
+        customTip = parseFloat(val) || 0;
+        document.querySelectorAll('.tip-btn').forEach(b => b.classList.remove('active'));
+        updateTotals();
+    }
+
+    // --- HELPER: Views ---
+    function showError(msg) {
+        const el = document.getElementById('error-container');
+        el.style.display = 'block';
+        el.innerHTML = `<strong>Error:</strong> ${msg}`;
+    }
+
+    function showSuccess(amount, id) {
+        document.getElementById('checkout-view').style.display = 'none';
+        document.getElementById('success-view').style.display = 'block';
+        document.getElementById('receipt-info').innerHTML = `Amount Paid: $${amount.toFixed(2)}<br>Trans ID: ${id}`;
+    }
+</script>
+
+</body>
+</html>
