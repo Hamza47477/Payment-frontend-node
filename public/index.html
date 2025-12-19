@@ -108,7 +108,7 @@
 
     // 3. Backend URL
     // Prefer query param `backend_base_url`, fallback to livekit-mobile.linkedinwriter.io.
-    const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'http://livekit-mobile.linkedinwriter.io:8000';
+    const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'https://livekit-mobile.linkedinwriter.io';
     
     // 4. Get Order ID from URL or default to 6
     const ORDER_ID = urlParams.get('order_id') || '6';
@@ -141,7 +141,7 @@
     // --- FUNCTION: Load Order ---
     async function loadOrder() {
         try {
-            // CALLING: GET http://livekit-mobile.linkedinwriter.io:8000/api/orders/6
+            // CALLING: GET https://livekit-mobile.linkedinwriter.io/api/orders/6
             const res = await fetch(`${BACKEND_BASE_URL}/api/orders/${ORDER_ID}`);
             
             if (!res.ok) throw new Error(`Order API returned ${res.status}`);
@@ -184,7 +184,7 @@
             const totalAmount = getTotalAmount();
 
             // 1. Create Payment Intent
-            // CALLING: POST http://livekit-mobile.linkedinwriter.io:8000/api/payments/intents
+            // CALLING: POST https://livekit-mobile.linkedinwriter.io/api/payments/intents
             const tipAmount = (customTip > 0) ? customTip : (currentOrder.total_price * currentTipPercent / 100);
 
             const intentRes = await fetch(`${BACKEND_BASE_URL}/api/payments/intents`, {
@@ -249,7 +249,7 @@
     // --- FUNCTION: Get Payment Intent Details ---
     async function getPaymentIntentDetails(paymentIntentId) {
         try {
-            // CALLING: GET http://livekit-mobile.linkedinwriter.io:8000/api/payments/intents/{payment_intent_id}
+            // CALLING: GET https://livekit-mobile.linkedinwriter.io/api/payments/intents/{payment_intent_id}
             const res = await fetch(`${BACKEND_BASE_URL}/api/payments/intents/${paymentIntentId}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
