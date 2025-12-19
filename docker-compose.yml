@@ -10,7 +10,7 @@ services:
       - NODE_ENV=production
       - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - BACKEND_API_URL=${BACKEND_API_URL:-http://host.docker.internal:8005/api}
+      - BACKEND_API_URL=${BACKEND_API_URL:-https://livekit-mobile.linkedinwriter.io/api}
       - PORT=3000
     networks:
       - taken-network

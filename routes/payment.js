@@ -3,7 +3,7 @@ const router = express.Router();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const axios = require('axios');
 
-const BACKEND_API = process.env.BACKEND_API_URL || 'http://localhost:8000/api';
+const BACKEND_API = process.env.BACKEND_API_URL || 'https://livekit-mobile.linkedinwriter.io/api';
 
 /**
  * Create Payment Intent via Backend API
