@@ -36,7 +36,7 @@ app.use((err, req, res, next) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`\n🚀 Payment Frontend Server Running`);
-  console.log(`📍 Local: http://localhost:${PORT}`);
+  console.log(`📍 Local: http://livekit-mobile.linkedinwriter.io:${PORT}`);
   console.log(`🔑 Stripe: ${process.env.STRIPE_PUBLISHABLE_KEY ? 'Configured' : 'Not configured'}`);
   console.log(`🔗 Backend: ${process.env.BACKEND_API_URL}\n`);
 });
