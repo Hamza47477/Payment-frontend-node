@@ -28,7 +28,7 @@
         input[type="number"] { width: 100%; padding: 10px; border: 1px solid #e6ebf1; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
 
         /* Payment Form */
-        #card-element { padding: 12px; border: 1px solid #e6ebf1; border-radius: 6px; background: white; margin-bottom: 20px; }
+        #payment-element { margin-bottom: 20px; min-height: 200px; } /* Min-height prevents layout shift */
         .pay-button { width: 100%; padding: 12px; background: #5469d4; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
         .pay-button:hover { background: #4456b3; }
         .pay-button:disabled { background: #aab7c4; cursor: not-allowed; }
@@ -75,17 +75,11 @@
         </section>
 
         <section id="payment-section" style="display: none;">
-            <!-- Apple Pay / Google Pay Button -->
-            <div id="payment-request-button" style="margin-bottom: 20px;">
-                <!-- A Stripe Element will be inserted here. -->
-            </div>
-            
-            <div class="separator" style="text-align: center; margin: 20px 0; color: #697386; font-size: 14px; display: none;" id="payment-separator">
-                Or pay with card
-            </div>
-
-            <div id="card-element"></div>
-            <button id="pay-button" class="pay-button" onclick="handlePayment()">Pay Now</button>
+            <form id="payment-form">
+                <div id="payment-element">
+                    </div>
+                <button id="pay-button" class="pay-button">Pay Now</button>
+            </form>
         </section>
     </div>
 
@@ -100,25 +94,19 @@
 
 <script>
     // ================= CONFIGURATION =================
-    // 1. Stripe Key
     const STRIPE_KEY = 'pk_test_51SIqA4Ki3uNg2emjxfkokQEF9VXyUZjAAWo37jbWj9CMi0AhBJprVco0ZK3dIqeDBsvfHY1Ftz8SY1HV9o6xQONH0097lDkUkC';
-    
-    // 2. URL params
     const urlParams = new URLSearchParams(window.location.search);
-
-    // 3. Backend URL
-    // Prefer query param `backend_base_url`, fallback to livekit-mobile.linkedinwriter.io.
     const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'https://livekit-mobile.linkedinwriter.io';
-    
-    // 4. Get Order ID from URL or default to 6
-    const ORDER_ID = urlParams.get('order_id') || '6';
+    const ORDER_ID = urlParams.get('order_id') || '7';
     // =================================================
 
     // State Variables
-    let stripe, elements, cardElement;
+    let stripe, elements, paymentElement;
     let currentOrder = null;
     let currentTipPercent = 15;
     let customTip = 0;
+    let currentClientSecret = null;
+    let updateTimer = null; // For debouncing tip updates
 
     // Initialize App
     document.addEventListener('DOMContentLoaded', async () => {
@@ -130,8 +118,8 @@
             // Step 1: Load the Order
             await loadOrder();
 
-            // Step 2: Initialize Stripe Form
-            setupStripe();
+            // Step 2: Initialize Stripe Payment Element (Requires fetching Intent first)
+            await initializePaymentElement();
 
         } catch (error) {
             showError(`Initialization Failed: ${error.message}`);
@@ -141,9 +129,7 @@
     // --- FUNCTION: Load Order ---
     async function loadOrder() {
         try {
-            // CALLING: GET https://livekit-mobile.linkedinwriter.io/api/orders/6
             const res = await fetch(`${BACKEND_BASE_URL}/api/orders/${ORDER_ID}`);
-            
             if (!res.ok) throw new Error(`Order API returned ${res.status}`);
             
             currentOrder = await res.json();
@@ -158,147 +144,167 @@
 
         } catch (err) {
             console.error(err);
-            throw new Error(`Could not load order. Is backend running on port 8000?`);
+            throw new Error(`Could not load order. Check console.`);
         }
     }
 
-    // --- FUNCTION: Setup Stripe ---
-    function setupStripe() {
-        elements = stripe.elements();
-        cardElement = elements.create('card', {
-            style: {
-                base: { fontSize: '16px', color: '#32325d', fontFamily: 'sans-serif', '::placeholder': { color: '#aab7c4' } }
-            }
-        });
-        cardElement.mount('#card-element');
+    // --- FUNCTION: Initialize Payment Element ---
+    async function initializePaymentElement() {
+        try {
+            // We must create the PaymentIntent BEFORE mounting the element
+            // because the Element needs the 'clientSecret' to know what methods to show.
+            const clientSecret = await createOrUpdatePaymentIntent();
+            
+            const appearance = { theme: 'stripe' };
+            elements = stripe.elements({ appearance, clientSecret });
+            
+            paymentElement = elements.create('payment', {
+                layout: 'tabs' // Displays 'Apple Pay' and 'Card' as tabs if available
+            });
+            
+            paymentElement.mount('#payment-element');
+            
+            // Attach submit listener
+            document.getElementById('payment-form').addEventListener('submit', handleSubmit);
+
+        } catch (error) {
+            showError("Failed to load payment form: " + error.message);
+        }
     }
 
-    // --- FUNCTION: Handle Payment ---
-    async function handlePayment() {
+    // --- FUNCTION: Create or Update Payment Intent ---
+    // This calls your backend to get a clientSecret for the current total amount
+    async function createOrUpdatePaymentIntent() {
+        const subtotal = currentOrder.total_price;
+        const tipAmount = (customTip > 0) ? customTip : (subtotal * currentTipPercent / 100);
+        
+        console.log(`Creating/Updating Intent for Tip: $${tipAmount}`);
+
+        const res = await fetch(`${BACKEND_BASE_URL}/api/payments/intents`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                order_id: parseInt(ORDER_ID),
+                currency: 'USD',
+                tip_amount: tipAmount
+            })
+        });
+
+        if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(`Backend Error: ${txt}`);
+        }
+
+        const data = await res.json();
+        currentClientSecret = data.client_secret;
+        return data.client_secret;
+    }
+
+    // --- FUNCTION: Handle Payment Submission ---
+    async function handleSubmit(e) {
+        e.preventDefault();
+        
         const btn = document.getElementById('pay-button');
         btn.disabled = true;
         btn.textContent = "Processing...";
         document.getElementById('error-container').style.display = 'none';
 
-        try {
-            const totalAmount = getTotalAmount();
+        if (!stripe || !elements) return;
 
-            // 1. Create Payment Intent
-            // CALLING: POST https://livekit-mobile.linkedinwriter.io/api/payments/intents
-            const tipAmount = (customTip > 0) ? customTip : (currentOrder.total_price * currentTipPercent / 100);
+        // Stripe confirms the payment using the element's data
+        const { error, paymentIntent } = await stripe.confirmPayment({
+            elements,
+            confirmParams: {
+                // Return URL is required, but we can handle without redirect if we prefer:
+                // If you want to avoid redirect, use redirect: 'if_required'
+                return_url: window.location.href + '?status=success',
+            },
+            redirect: 'if_required' 
+        });
 
-            const intentRes = await fetch(`${BACKEND_BASE_URL}/api/payments/intents`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    order_id: parseInt(ORDER_ID),
-                    currency: 'USD',
-                    tip_amount: tipAmount
-                })
-            });
-
-            if (!intentRes.ok) {
-                const txt = await intentRes.text();
-                throw new Error(`Intent API Error: ${txt}`);
-            }
-
-            const intentData = await intentRes.json();
-            console.log("📦 Payment Intent Response:", intentData);
-            
-            // Extract both IDs from response
-            const clientSecret = intentData.client_secret;
-            
-            if (!clientSecret) {
-                throw new Error("No client_secret received from server. Response: " + JSON.stringify(intentData));
-            }
-
-            // Stripe client secrets look like: pi_XXX_secret_YYY
-            if (!clientSecret.includes('_secret_')) {
-                throw new Error(
-                    "Invalid Stripe client_secret returned by backend. Expected '*_secret_*' but got: " +
-                    JSON.stringify(clientSecret)
-                );
-            }
-            
-            console.log("🔑 Using Client Secret:", clientSecret.substring(0, 20) + "...");
-
-            // 2. Confirm Card Payment with Stripe
-            // Use client_secret which contains the payment intent reference
-            const result = await stripe.confirmCardPayment(clientSecret, {
-                payment_method: { card: cardElement }
-            });
-
-            if (result.error) {
-                throw new Error(result.error.message);
-            }
-
-            if (result.paymentIntent.status === 'succeeded') {
-                // 3. Record Success in Backend
-                await recordSuccess(result.paymentIntent, totalAmount);
-                showSuccess(totalAmount, result.paymentIntent.id);
-            }
-
-        } catch (error) {
+        if (error) {
             console.error("Payment Error:", error);
             showError(error.message);
             btn.disabled = false;
             btn.textContent = "Pay Now";
-        }
-    }
-
-    // --- FUNCTION: Get Payment Intent Details ---
-    async function getPaymentIntentDetails(paymentIntentId) {
-        try {
-            // CALLING: GET https://livekit-mobile.linkedinwriter.io/api/payments/intents/{payment_intent_id}
-            const res = await fetch(`${BACKEND_BASE_URL}/api/payments/intents/${paymentIntentId}`, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            if (!res.ok) {
-                console.warn(`Get Payment Intent API returned ${res.status}`);
-                return null;
-            }
-
-            const intentDetails = await res.json();
-            console.log("📋 Payment Intent Details:", intentDetails);
-            return intentDetails;
-
-        } catch (err) {
-            console.warn("Failed to retrieve payment intent details:", err);
-            return null;
+        } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+            console.log("✅ Payment Succeeded:", paymentIntent);
+            
+            // Record in backend (Optional if your webhook handles it, but good for UI)
+            await recordSuccess(paymentIntent);
+            showSuccess(paymentIntent.amount / 100, paymentIntent.id);
         }
     }
 
     // --- FUNCTION: Record Success ---
-    async function recordSuccess(paymentIntent, amount) {
+    async function recordSuccess(paymentIntent) {
         try {
-            // Step 1: Fetch payment intent details from backend
-            const intentDetails = await getPaymentIntentDetails(paymentIntent.id);
-            
-            // Step 2: Log intent details for verification
-            if (intentDetails) {
-                console.log("💾 Intent Status:", intentDetails.status);
-                console.log("💾 Intent Amount:", intentDetails.amount);
-            }
-
-            // Step 3: Record payment in backend
-            // CALLING: POST http://livekit-mobile.linkedinwriter.io:8000/api/payments
             await fetch(`${BACKEND_BASE_URL}/api/payments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     order_id: parseInt(ORDER_ID),
-                    payment_method: 'card',
+                    payment_method: 'card', // Or 'apple_pay' if you can detect it
                     amount: currentOrder.total_price,
-                    tip_amount: amount - currentOrder.total_price,
+                    tip_amount: (paymentIntent.amount / 100) - currentOrder.total_price,
                     currency: 'USD'
                 })
             });
             console.log("✅ Payment recorded in backend");
         } catch (err) {
-            console.warn("Payment succeeded in Stripe, but backend recording failed", err);
+            console.warn("Backend recording failed", err);
         }
+    }
+
+    // --- HELPER: Tip Logic with Debounce ---
+    // When tip changes, we must update the PaymentIntent on the server 
+    // so Stripe knows the new total amount before the user pays.
+    async function handleTipChange() {
+        updateTotals();
+        
+        const btn = document.getElementById('pay-button');
+        btn.disabled = true;
+        btn.textContent = "Updating Total...";
+
+        // Debounce: Wait 500ms after user stops clicking/typing
+        clearTimeout(updateTimer);
+        updateTimer = setTimeout(async () => {
+            try {
+                // Fetch new secret for new amount
+                const newClientSecret = await createOrUpdatePaymentIntent();
+                
+                // Tell Stripe Elements to use the new secret
+                // This updates the internal amount without reloading the UI
+                elements.fetchUpdates(); 
+                
+                btn.disabled = false;
+                btn.textContent = "Pay Now";
+            } catch (error) {
+                console.error("Failed to update tip:", error);
+                showError("Could not update tip amount. Please refresh.");
+            }
+        }, 500);
+    }
+
+    window.setTip = function(percent) {
+        currentTipPercent = percent;
+        customTip = 0;
+        document.getElementById('custom-tip').value = '';
+        
+        document.querySelectorAll('.tip-btn').forEach(btn => {
+            if(btn.textContent.includes(percent + '%') || (percent===0 && btn.textContent==='No')) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        handleTipChange();
+    }
+
+    window.setCustomTip = function(val) {
+        customTip = parseFloat(val) || 0;
+        document.querySelectorAll('.tip-btn').forEach(b => b.classList.remove('active'));
+        handleTipChange();
     }
 
     // --- HELPER: UI Logic ---
@@ -308,7 +314,6 @@
             container.innerHTML = '<p>No items in order.</p>';
             return;
         }
-        
         let html = '';
         currentOrder.items.forEach(item => {
             html += `
@@ -331,35 +336,6 @@
         document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
     }
 
-    function getTotalAmount() {
-        const subtotal = currentOrder.total_price;
-        return (customTip > 0) ? (subtotal + customTip) : (subtotal + (subtotal * currentTipPercent / 100));
-    }
-
-    // --- HELPER: Tip Logic ---
-    window.setTip = function(percent) {
-        currentTipPercent = percent;
-        customTip = 0;
-        document.getElementById('custom-tip').value = '';
-        
-        // Update Buttons
-        document.querySelectorAll('.tip-btn').forEach(btn => {
-            if(btn.textContent.includes(percent + '%') || (percent===0 && btn.textContent==='No')) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
-        updateTotals();
-    }
-
-    window.setCustomTip = function(val) {
-        customTip = parseFloat(val) || 0;
-        document.querySelectorAll('.tip-btn').forEach(b => b.classList.remove('active'));
-        updateTotals();
-    }
-
-    // --- HELPER: Views ---
     function showError(msg) {
         const el = document.getElementById('error-container');
         el.style.display = 'block';

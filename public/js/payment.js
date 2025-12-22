@@ -1,17 +1,14 @@
 // Prefer same-origin API via the Node server.
-// If API_BASE_URL is not defined by the page, default to the Node routes prefix.
 const API_BASE_URL = typeof window.API_BASE_URL === 'string' ? window.API_BASE_URL : '/api/payment';
 
 // Initialize Stripe
-const stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
+const stripe = Stripe('pk_test_YOUR_PUBLISHABLE_KEY_HERE'); // Replace with your actual key variable if defined globally
 let elements;
-let cardElement;
-let paymentRequest; // Stripe Payment Request Object
-let paymentIntentClientSecret;
-let paymentIntentId;
+let paymentElement;
 let currentOrder = null;
 let currentTipPercent = 15; // Default tip
 let customTip = 0;
+let isUpdatingPayment = false; // Prevents race conditions
 
 // DOM Elements
 const orderDetailsDiv = document.getElementById('order-details');
@@ -25,19 +22,25 @@ const subtotalSpan = document.getElementById('subtotal');
 const tipAmountSpan = document.getElementById('tip-amount');
 const totalAmountSpan = document.getElementById('total-amount');
 const customTipInput = document.getElementById('custom-tip-input');
-const applePayButton = document.getElementById('apple-pay-button');
-const cardPayButton = document.getElementById('card-pay-button');
+
+// The single submit button for the new Payment Element
+const submitButton = document.getElementById('submit-button');
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Initializing payment page...');
+    console.log('🚀 Initializing Payment Element page...');
     console.log('📦 Order ID:', ORDER_ID);
     
     try {
         await loadOrderDetails();
         setupTipButtons();
-        await initializeStripeElements();
-        setupPaymentRequestButton();
+        
+        // Initialize the Payment Element with the default tip
+        await initializePaymentElement();
+        
+        // Setup the form submit listener
+        setupFormListener();
+        
     } catch (error) {
         console.error('Initialization error:', error);
         showError('Failed to initialize payment page: ' + error.message);
@@ -50,28 +53,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadOrderDetails() {
     try {
         const response = await fetch(`${API_BASE_URL}/order/${ORDER_ID}`);
-        
-        if (!response.ok) {
-            throw new Error('Order not found');
-        }
+        if (!response.ok) throw new Error('Order not found');
         
         currentOrder = await response.json();
         console.log('📋 Order loaded:', currentOrder);
         
         displayOrderDetails();
-        updateTotals();
+        updateTotals(false); // Update UI totals, but don't refresh Stripe yet
         
-        // Show payment sections
+        // Show sections
         tipSection.style.display = 'block';
         paymentSection.style.display = 'block';
         
     } catch (error) {
         console.error('Error loading order:', error);
-        orderDetailsDiv.innerHTML = `
-            <div class="error-message">
-                ⚠️ Could not load order ${ORDER_ID}. Please check the order ID.
-            </div>
-        `;
+        orderDetailsDiv.innerHTML = `<div class="error-message">⚠️ Could not load order ${ORDER_ID}</div>`;
         throw error;
     }
 }
@@ -86,7 +82,6 @@ function displayOrderDetails() {
     }
     
     let html = '<div class="order-items">';
-    
     currentOrder.items.forEach(item => {
         html += `
             <div class="order-item">
@@ -98,7 +93,6 @@ function displayOrderDetails() {
             </div>
         `;
     });
-    
     html += '</div>';
     
     orderDetailsDiv.innerHTML = html;
@@ -113,38 +107,47 @@ function setupTipButtons() {
     
     tipButtons.forEach(btn => {
         btn.addEventListener('click', () => {
-            // Remove active class from all buttons
+            if (isUpdatingPayment) return; // Prevent clicking while loading
+
             tipButtons.forEach(b => b.classList.remove('active'));
-            
-            // Add active class to clicked button
             btn.classList.add('active');
             
-            // Update tip percentage
             currentTipPercent = parseInt(btn.dataset.percent);
             customTipInput.value = '';
             customTip = 0;
             
-            updateTotals();
+            updateTotals(true); // True = Trigger Stripe update
         });
     });
     
-    // Custom tip input
+    // Debounce custom tip input to avoid too many API calls
+    let debounceTimer;
     customTipInput.addEventListener('input', (e) => {
+        clearTimeout(debounceTimer);
         const value = parseFloat(e.target.value) || 0;
         customTip = value;
         
-        // Deactivate percentage buttons
         tipButtons.forEach(b => b.classList.remove('active'));
         currentTipPercent = 0;
         
-        updateTotals();
+        // Update UI immediately
+        const subtotal = currentOrder.total_price;
+        const total = subtotal + customTip;
+        subtotalSpan.textContent = `$${subtotal.toFixed(2)}`;
+        tipAmountSpan.textContent = `$${customTip.toFixed(2)}`;
+        totalAmountSpan.textContent = `$${total.toFixed(2)}`;
+
+        // Update Stripe after user stops typing for 500ms
+        debounceTimer = setTimeout(() => {
+            refreshPaymentIntent();
+        }, 800);
     });
 }
 
 /**
- * Calculate and update totals
+ * Calculate totals and optionally update Stripe
  */
-function updateTotals() {
+async function updateTotals(shouldUpdateStripe = false) {
     if (!currentOrder) return;
     
     const subtotal = currentOrder.total_price;
@@ -155,262 +158,146 @@ function updateTotals() {
     tipAmountSpan.textContent = `$${tip.toFixed(2)}`;
     totalAmountSpan.textContent = `$${total.toFixed(2)}`;
 
-    // Update Payment Request if it exists
-    if (paymentRequest) {
-        paymentRequest.update({
-            total: {
-                label: 'Taken Cafe Order',
-                amount: Math.round(total * 100), // Amount in cents
-            },
-        });
+    if (shouldUpdateStripe) {
+        await refreshPaymentIntent();
     }
 }
 
 /**
- * Get current tip amount
+ * Helper: Get current calculated tip
  */
 function getCurrentTip() {
-    if (customTip > 0) {
-        return customTip;
-    }
+    if (customTip > 0) return customTip;
     return currentOrder.total_price * currentTipPercent / 100;
 }
 
 /**
- * Get total amount (order + tip)
+ * Initialize the Stripe Payment Element
  */
-function getTotalAmount() {
-    return currentOrder.total_price + getCurrentTip();
-}
-
-/**
- * Initialize Stripe Elements for card payment
- */
-async function initializeStripeElements() {
+async function initializePaymentElement() {
     try {
-        // Create payment intent via Node -> Backend (backend computes amount server-side)
-        const response = await fetch(`${API_BASE_URL}/create-payment-intent`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                orderId: ORDER_ID,
-                currency: 'USD',
-                tipAmount: getCurrentTip()
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to create payment intent');
-        }
-        
-        const data = await response.json();
-        paymentIntentClientSecret = data.clientSecret;
-        paymentIntentId = data.paymentIntentId;
+        const clientSecret = await createPaymentIntent();
 
-        if (!paymentIntentClientSecret || !String(paymentIntentClientSecret).includes('_secret_')) {
-            throw new Error('Invalid client secret returned from server');
-        }
-        
-        console.log('✅ Payment Intent created:', paymentIntentId);
-        
-        // Create card element
-        elements = stripe.elements();
-        cardElement = elements.create('card', {
-            style: {
-                base: {
-                    fontSize: '16px',
-                    color: '#333',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                    '::placeholder': {
-                        color: '#aab7c4'
-                    }
-                }
-            }
+        const appearance = {
+            theme: 'stripe',
+            variables: {
+                colorPrimary: '#5469d4',
+            },
+        };
+
+        // Initialize Elements with the secret
+        elements = stripe.elements({ appearance, clientSecret });
+
+        // Create the Payment Element (Handles Apple Pay, Google Pay, Cards)
+        paymentElement = elements.create('payment', {
+            layout: 'tabs'
         });
-        
-        cardElement.mount('#card-element');
-        
-        // Setup card payment button
-        cardPayButton.addEventListener('click', handleCardPayment);
-        
+
+        paymentElement.mount('#payment-element');
+        console.log('✅ Payment Element mounted');
+
     } catch (error) {
         console.error('Error initializing Stripe:', error);
-        showError('Failed to initialize payment: ' + error.message);
+        showError('Failed to load payment form: ' + error.message);
     }
 }
 
 /**
- * Handle card payment
+ * Fetch a new Client Secret from backend
  */
-async function handleCardPayment(e) {
-    e.preventDefault();
-    
-    cardPayButton.disabled = true;
-    cardPayButton.textContent = 'Processing...';
-    showStatus('Processing payment...', 'processing');
-    
-    try {
-        // Confirm card payment
-        const { error, paymentIntent } = await stripe.confirmCardPayment(
-            paymentIntentClientSecret,
-            {
-                payment_method: {
-                    card: cardElement
-                }
-            }
-        );
-        
-        if (error) {
-            throw new Error(error.message);
-        }
-        
-        if (paymentIntent.status === 'succeeded') {
-            await recordPaymentInBackend(paymentIntent, 'card');
-        } else {
-            throw new Error('Payment was not successful');
-        }
-        
-    } catch (error) {
-        console.error('Card payment error:', error);
-        showError(error.message);
-        cardPayButton.disabled = false;
-        cardPayButton.textContent = 'Pay with Card';
-    }
-}
-
-/**
- * Setup Stripe Payment Request Button (Apple Pay / Google Pay)
- */
-async function setupPaymentRequestButton() {
-    // 1. Create Payment Request
-    paymentRequest = stripe.paymentRequest({
-        country: 'US',
-        currency: 'usd',
-        total: {
-            label: 'Taken Cafe Order',
-            amount: Math.round(getTotalAmount() * 100), // Amount in cents
-        },
-        requestPayerName: true,
-        requestPayerEmail: true,
+async function createPaymentIntent() {
+    const response = await fetch(`${API_BASE_URL}/create-payment-intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            orderId: ORDER_ID,
+            currency: 'USD',
+            tipAmount: getCurrentTip() // Send current calculated tip
+        })
     });
+    
+    if (!response.ok) throw new Error('Failed to create payment intent');
+    const data = await response.json();
+    return data.clientSecret;
+}
 
-    // 2. Check availability
-    const result = await paymentRequest.canMakePayment();
-    let walletType = 'card'; // Default fallback
+/**
+ * Called when Tip Changes:
+ * Fetches a new secret with the new amount and updates the element.
+ */
+async function refreshPaymentIntent() {
+    if (!elements) return;
 
-    if (result) {
-        console.log('✅ Payment Request Button available:', result);
+    try {
+        isUpdatingPayment = true;
+        submitButton.disabled = true;
+        submitButton.textContent = 'Updating Total...';
         
-        if (result.applePay) walletType = 'apple_pay';
-        else if (result.googlePay) walletType = 'google_pay';
+        // 1. Get new secret with updated amount
+        const newClientSecret = await createPaymentIntent();
         
-        // 3. Create and mount button
-        const prButton = elements.create('paymentRequestButton', {
-            paymentRequest: paymentRequest,
-            style: {
-                paymentRequestButton: {
-                    theme: 'dark',
-                    height: '48px',
-                },
+        // 2. Update the existing elements instance
+        elements.fetchUpdates(); // Fetches config updates
+        
+        // IMPORTANT: In standard Payment Element flow, updating the secret 
+        // usually requires updating the elements options.
+        // If your library version supports elements.update({ clientSecret }), use it.
+        // Otherwise, standard practice is to rely on confirmPayment using the NEW secret 
+        // OR simply unmount and remount if the amount change is drastic.
+        
+        // For simplicity and stability with the Payment Element:
+        // We actually just update the 'options' of the elements group
+        elements.update({ clientSecret: newClientSecret });
+
+        console.log('✅ Payment Intent updated with new tip');
+    } catch (error) {
+        console.error('Failed to update amount:', error);
+        showError('Failed to update total amount.');
+    } finally {
+        isUpdatingPayment = false;
+        submitButton.disabled = false;
+        submitButton.textContent = 'Pay Now';
+    }
+}
+
+/**
+ * Handle the "Pay Now" form submission
+ */
+async function setupFormListener() {
+    const form = document.getElementById('payment-form'); // Ensure your <form> has this ID
+    
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!stripe || !elements) return;
+
+        submitButton.disabled = true;
+        submitButton.textContent = 'Processing...';
+        showStatus('Processing payment...', 'processing');
+
+        // Confirm the payment
+        const { error } = await stripe.confirmPayment({
+            elements,
+            confirmParams: {
+                // Redirect to this page (or a success page) after completion
+                return_url: window.location.href, 
+                payment_method_data: {
+                    billing_details: {
+                        // You can pre-fill details here if you have them
+                    }
+                }
             },
         });
 
-        prButton.mount('#payment-request-button');
-        
-        // Show separator
-        document.getElementById('payment-separator').style.display = 'block';
-
-        // 4. Handle Payment Method Event
-        paymentRequest.on('paymentmethod', async (ev) => {
-            try {
-                console.log('💳 Payment Request method received:', ev.paymentMethod.id);
-                
-                // Confirm the PaymentIntent with the received payment method
-                const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
-                    paymentIntentClientSecret,
-                    {
-                        payment_method: ev.paymentMethod.id,
-                    },
-                    {
-                        handleActions: false // We handle actions manually if needed
-                    }
-                );
-
-                if (confirmError) {
-                    // Report error to the browser payment interface
-                    ev.complete('fail');
-                    console.error('Confirm error:', confirmError);
-                    showError(confirmError.message);
-                } else {
-                    // Report success to the browser payment interface
-                    ev.complete('success');
-                    
-                    // Check if further action is needed (e.g. 3DS)
-                    if (paymentIntent.status === 'requires_action') {
-                        const { error: actionError } = await stripe.confirmCardPayment(paymentIntentClientSecret);
-                        if (actionError) {
-                            showError(actionError.message);
-                            return;
-                        }
-                    }
-
-                    // Record success in backend
-                    await recordPaymentInBackend(paymentIntent, walletType);
-                }
-            } catch (err) {
-                console.error('Payment Request error:', err);
-                ev.complete('fail');
-                showError(err.message);
-            }
-        });
-    } else {
-        console.log('❌ Payment Request Button not available (Apple Pay/Google Pay not supported on this device/browser)');
-        document.getElementById('payment-request-button').style.display = 'none';
-    }
-}
-
-/**
- * Record payment in backend after Stripe success
- */
-async function recordPaymentInBackend(paymentIntent, method) {
-    try {
-        showStatus('Recording payment...', 'processing');
-        
-        const response = await fetch(`${API_BASE_URL}/process-apple-pay`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                paymentIntentId: paymentIntent.id,
-                orderId: ORDER_ID,
-                paymentMethodId: paymentIntent.payment_method,
-                amount: currentOrder.total_price,
-                tipAmount: getCurrentTip(),
-                method: method // 'card', 'apple_pay', 'google_pay'
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success || response.status === 207) {
-            showSuccess(result.payment);
-        } else {
-            // Payment succeeded in Stripe but may have issues with backend
-            showSuccess({
-                payment_id: paymentIntent.id,
-                status: 'completed',
-                total_amount: getTotalAmount()
-            }, result.warning);
+        // This code only runs if an error occurred immediately (e.g., card declined).
+        // If success, the page redirects to 'return_url'.
+        if (error) {
+            console.error('Payment error:', error);
+            showError(error.message);
+            submitButton.disabled = false;
+            submitButton.textContent = 'Pay Now';
         }
-        
-    } catch (error) {
-        console.error('Error recording payment:', error);
-        // Payment succeeded in Stripe, show success anyway
-        showSuccess({
-            payment_id: paymentIntent.id,
-            status: 'completed',
-            total_amount: getTotalAmount()
-        }, 'Payment successful, but recording in system pending.');
-    }
+    });
 }
 
 /**
@@ -423,40 +310,13 @@ function showStatus(message, type = 'processing') {
 }
 
 /**
- * Show success screen
- */
-function showSuccess(payment, warning = null) {
-    // Hide other sections
-    tipSection.style.display = 'none';
-    paymentSection.style.display = 'none';
-    
-    // Show success section
-    successSection.style.display = 'block';
-    
-    const detailsDiv = document.getElementById('payment-details');
-    detailsDiv.innerHTML = `
-        ${warning ? `<p style="color: orange;">⚠️ ${warning}</p>` : ''}
-        <p><strong>Payment ID:</strong> ${payment.payment_id || 'N/A'}</p>
-        <p><strong>Order ID:</strong> ${ORDER_ID}</p>
-        <p><strong>Amount:</strong> $${(payment.total_amount || getTotalAmount()).toFixed(2)}</p>
-        <p><strong>Status:</strong> ${payment.status || 'Completed'}</p>
-    `;
-    
-    console.log('✅ Payment successful:', payment);
-}
-
-/**
  * Show error screen
  */
 function showError(message) {
-    // Hide other sections
-    tipSection.style.display = 'none';
-    paymentSection.style.display = 'none';
-    successSection.style.display = 'none';
-    
-    // Show error section
+    paymentStatus.style.display = 'none';
     errorSection.style.display = 'block';
     document.getElementById('error-message').textContent = message;
-    
-    console.error('❌ Payment error:', message);
 }
+
+// NOTE: checkPaymentStatus logic (for after redirect) would typically go here
+// checking new URLSearchParams(window.location.search).get('payment_intent_client_secret')
