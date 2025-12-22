@@ -239,20 +239,34 @@
     // --- FUNCTION: Record Success ---
     async function recordSuccess(paymentIntent) {
         try {
-            await fetch(`${BACKEND_BASE_URL}/api/payments`, {
+            const tipAmount = (paymentIntent.amount / 100) - currentOrder.total_price;
+            console.log(`Recording payment to backend: amount=${paymentIntent.amount / 100}, tip=${tipAmount}`);
+            
+            // Call the local Node.js payment route which forwards to the main backend API
+            const response = await fetch(`/api/payment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     order_id: parseInt(ORDER_ID),
                     payment_method: 'card', // Or 'apple_pay' if you can detect it
                     amount: currentOrder.total_price,
-                    tip_amount: (paymentIntent.amount / 100) - currentOrder.total_price,
-                    currency: 'USD'
+                    tip_amount: tipAmount,
+                    currency: 'USD',
+                    stripe_payment_intent_id: paymentIntent.id,
+                    stripe_charge_id: paymentIntent.latest_charge
                 })
             });
-            console.log("✅ Payment recorded in backend");
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("❌ Backend error:", response.status, errorText);
+                return;
+            }
+            
+            const result = await response.json();
+            console.log("✅ Payment recorded in backend:", result);
         } catch (err) {
-            console.warn("Backend recording failed", err);
+            console.error("❌ Backend recording failed:", err);
         }
     }
 

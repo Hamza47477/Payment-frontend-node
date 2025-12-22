@@ -341,4 +341,62 @@ router.post('/refund', async (req, res) => {
   }
 });
 
+/**
+ * Record Payment - Frontend calls this after successful Stripe payment
+ * This forwards the payment data to the backend API to store in database
+ */
+router.post('/', async (req, res) => {
+  try {
+    const { 
+      order_id, 
+      payment_method, 
+      amount, 
+      tip_amount = 0, 
+      currency = 'USD',
+      stripe_payment_intent_id,
+      stripe_charge_id
+    } = req.body;
+
+    // Validate required fields
+    if (!order_id || !payment_method || !amount) {
+      return res.status(400).json({
+        error: 'Missing required fields: order_id, payment_method, amount'
+      });
+    }
+
+    console.log(`📝 Recording payment for order ${order_id}:`, {
+      amount,
+      tip_amount,
+      payment_method,
+      stripe_payment_intent_id
+    });
+
+    // Forward to backend API
+    const backendResponse = await axios.post(`${BACKEND_API}/payments`, {
+      order_id: parseInt(order_id),
+      payment_method: payment_method,
+      amount: parseFloat(amount),
+      tip_amount: parseFloat(tip_amount),
+      currency: currency.toUpperCase(),
+      stripe_payment_intent_id: stripe_payment_intent_id,
+      stripe_charge_id: stripe_charge_id
+    });
+
+    console.log('✅ Payment recorded in backend:', backendResponse.data);
+
+    res.json({
+      success: true,
+      message: 'Payment recorded successfully',
+      data: backendResponse.data
+    });
+  } catch (error) {
+    console.error('❌ Error recording payment:', error.response?.data || error.message);
+    res.status(500).json({
+      error: 'Failed to record payment',
+      message: error.response?.data?.detail || error.message,
+      details: error.response?.data
+    });
+  }
+});
+
 module.exports = router;
