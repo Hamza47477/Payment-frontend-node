@@ -57,9 +57,9 @@
             </div>
             
             <div id="totals-container" style="display: none;">
-                <div class="total-row"><span>Subtotal</span><span id="subtotal">AED 0.00</span></div>
-                <div class="total-row"><span>Tip</span><span id="tip-amount">AED 0.00</span></div>
-                <div class="total-row final"><span>Total</span><span id="total-amount">AED 0.00</span></div>
+                <div class="total-row"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
+                <div class="total-row"><span>Tip</span><span id="tip-amount">$0.00</span></div>
+                <div class="total-row final"><span>Total</span><span id="total-amount">$0.00</span></div>
             </div>
         </section>
 
@@ -71,7 +71,7 @@
                 <button class="tip-btn" onclick="setTip(20)">20%</button>
                 <button class="tip-btn" onclick="setTip(25)">25%</button>
             </div>
-            <input type="number" id="custom-tip" placeholder="Custom tip amount (AED)" oninput="setCustomTip(this.value)">
+            <input type="number" id="custom-tip" placeholder="Custom tip amount ($)" oninput="setCustomTip(this.value)">
         </section>
 
         <section id="payment-section" style="display: none;">
@@ -97,13 +97,7 @@
     const STRIPE_KEY = 'pk_test_51SIqA4Ki3uNg2emjxfkokQEF9VXyUZjAAWo37jbWj9CMi0AhBJprVco0ZK3dIqeDBsvfHY1Ftz8SY1HV9o6xQONH0097lDkUkC';
     const urlParams = new URLSearchParams(window.location.search);
     const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'https://livekit-mobile.linkedinwriter.io';
-    const ORDER_ID = urlParams.get('order_id') || '8';
-    
-    // Debug: Log the configuration
-    console.log('🔧 CONFIGURATION:');
-    console.log(`   ├─ ORDER_ID: ${ORDER_ID} (from URL param or default)`);
-    console.log(`   ├─ BACKEND_BASE_URL: ${BACKEND_BASE_URL}`);
-    console.log(`   └─ Full URL params:`, Object.fromEntries(urlParams));
+    const ORDER_ID = urlParams.get('order_id') || '7';
     // =================================================
 
     // State Variables
@@ -191,7 +185,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 order_id: parseInt(ORDER_ID),
-                currency: 'AED',
+                currency: 'USD',
                 tip_amount: tipAmount
             })
         });
@@ -248,54 +242,16 @@
             const tipAmount = (paymentIntent.amount / 100) - currentOrder.total_price;
             console.log(`Recording payment to backend: amount=${paymentIntent.amount / 100}, tip=${tipAmount}`);
             
-            // Detect payment method type from PaymentIntent
-            let paymentMethod = 'card'; // Default
-            
-            // If charges data is not available, retrieve the full payment intent
-            if (!paymentIntent.charges || !paymentIntent.charges.data) {
-                console.log('Retrieving full payment intent for charge details...');
-                try {
-                    const retrieveResponse = await fetch(`${BACKEND_BASE_URL}/api/payments/intents/retrieve/${paymentIntent.id}`);
-                    if (retrieveResponse.ok) {
-                        const fullIntent = await retrieveResponse.json();
-                        if (fullIntent.charges?.data) {
-                            paymentIntent.charges = fullIntent.charges;
-                        }
-                    }
-                } catch (err) {
-                    console.warn('Could not retrieve full payment intent:', err);
-                }
-            }
-            
-            if (paymentIntent.payment_method_types && paymentIntent.payment_method_types.length > 0) {
-                const methodType = paymentIntent.payment_method_types[0];
-                if (methodType === 'card') {
-                    // Check if it's actually Apple Pay (card wallet type)
-                    const walletType = paymentIntent.charges?.data?.[0]?.payment_method_details?.card?.wallet?.type;
-                    if (walletType === 'apple_pay') {
-                        paymentMethod = 'apple_pay';
-                    } else if (walletType === 'google_pay') {
-                        paymentMethod = 'google_pay';
-                    } else {
-                        paymentMethod = 'card';
-                    }
-                } else {
-                    paymentMethod = methodType; // Could be other payment methods
-                }
-            }
-            
-            console.log(`Detected payment method: ${paymentMethod}`);
-            
             // Call the local Node.js payment route which forwards to the main backend API
             const response = await fetch(`/api/payment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     order_id: parseInt(ORDER_ID),
-                    payment_method: paymentMethod,
+                    payment_method: 'card', // Or 'apple_pay' if you can detect it
                     amount: currentOrder.total_price,
                     tip_amount: tipAmount,
-                    currency: 'AED',
+                    currency: 'USD',
                     stripe_payment_intent_id: paymentIntent.id,
                     stripe_charge_id: paymentIntent.latest_charge
                 })
@@ -377,7 +333,7 @@
             html += `
             <div class="order-item">
                 <span>${item.product_id} <span style="color:#8898aa">x${item.quantity}</span></span>
-                <span>AED ${item.price.toFixed(2)}</span>
+                <span>$${item.price.toFixed(2)}</span>
             </div>`;
         });
         container.innerHTML = html;
@@ -389,9 +345,9 @@
         const tip = (customTip > 0) ? customTip : (subtotal * currentTipPercent / 100);
         const total = subtotal + tip;
 
-        document.getElementById('subtotal').textContent = `AED ${subtotal.toFixed(2)}`;
-        document.getElementById('tip-amount').textContent = `AED ${tip.toFixed(2)}`;
-        document.getElementById('total-amount').textContent = `AED ${total.toFixed(2)}`;
+        document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+        document.getElementById('tip-amount').textContent = `$${tip.toFixed(2)}`;
+        document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
     }
 
     function showError(msg) {
@@ -403,7 +359,7 @@
     function showSuccess(amount, id) {
         document.getElementById('checkout-view').style.display = 'none';
         document.getElementById('success-view').style.display = 'block';
-        document.getElementById('receipt-info').innerHTML = `Amount Paid: AED ${amount.toFixed(2)}<br>Trans ID: ${id}`;
+        document.getElementById('receipt-info').innerHTML = `Amount Paid: $${amount.toFixed(2)}<br>Trans ID: ${id}`;
     }
 </script>
 
