@@ -98,6 +98,12 @@
     const urlParams = new URLSearchParams(window.location.search);
     const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'https://livekit-mobile.linkedinwriter.io';
     const ORDER_ID = urlParams.get('order_id') || '8';
+    
+    // Debug: Log the configuration
+    console.log('🔧 CONFIGURATION:');
+    console.log(`   ├─ ORDER_ID: ${ORDER_ID} (from URL param or default)`);
+    console.log(`   ├─ BACKEND_BASE_URL: ${BACKEND_BASE_URL}`);
+    console.log(`   └─ Full URL params:`, Object.fromEntries(urlParams));
     // =================================================
 
     // State Variables
