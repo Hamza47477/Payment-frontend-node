@@ -12,7 +12,7 @@ const BACKEND_API = process.env.BACKEND_API_URL || 'https://livekit-mobile.linke
  */
 router.post('/create-payment-intent', async (req, res) => {
   try {
-    const { orderId, currency = 'USD', tipAmount = 0, email } = req.body;
+    const { orderId, currency = 'AED', tipAmount = 0, email } = req.body;
 
     if (!orderId) {
       return res.status(400).json({
@@ -63,6 +63,29 @@ router.get('/intent/:paymentIntentId', async (req, res) => {
     res.status(500).json({
       error: 'Failed to fetch payment intent',
       message: error.response?.data?.detail || error.message
+    });
+  }
+});
+
+/**
+ * Retrieve Payment Intent from Stripe (with full details including charges)
+ */
+router.get('/intents/retrieve/:stripePaymentIntentId', async (req, res) => {
+  try {
+    const { stripePaymentIntentId } = req.params;
+
+    // Retrieve from Stripe with expanded charges for wallet detection
+    const paymentIntent = await stripe.paymentIntents.retrieve(
+      stripePaymentIntentId,
+      { expand: ['charges.data.payment_method_details'] }
+    );
+
+    res.json(paymentIntent);
+  } catch (error) {
+    console.error('Error retrieving Stripe payment intent:', error.message);
+    res.status(500).json({
+      error: 'Failed to retrieve payment intent',
+      message: error.message
     });
   }
 });
@@ -184,7 +207,7 @@ router.post('/process-apple-pay', async (req, res) => {
           payment_method: method, // Use the method passed from frontend
           amount: amount,
           tip_amount: tipAmount,
-          currency: 'USD',
+          currency: 'AED',
           apple_pay_data: {
             payment_data: {
               data: 'encrypted_payment_data',
@@ -352,7 +375,7 @@ router.post('/', async (req, res) => {
       payment_method, 
       amount, 
       tip_amount = 0, 
-      currency = 'USD',
+      currency = 'AED',
       stripe_payment_intent_id,
       stripe_charge_id
     } = req.body;
