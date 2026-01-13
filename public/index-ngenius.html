@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taken Cafe - Payment (N-Genius)</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Payment Method Buttons */
+        .payment-methods { margin-bottom: 20px; }
+        .payment-method-btn {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 2px solid #e6ebf1;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .payment-method-btn:hover {
+            border-color: #5469d4;
+            background: #f8f9fc;
+        }
+        .payment-method-btn:disabled {
+            background: #f5f5f5;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .payment-status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+        .payment-status.processing {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffc107;
+        }
+        .payment-status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #28a745;
+        }
+        .payment-status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #dc3545;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #5469d4;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>☕ Taken Cafe</h1>
+        <p class="subtitle">Secure Checkout - N-Genius Payment</p>
+    </header>
+
+    <!-- Payment Status Message -->
+    <div id="payment-status" class="payment-status"></div>
+
+    <!-- Error Section -->
+    <div id="error-section" style="display: none;">
+        <div class="error-message">
+            <strong>⚠️ Payment Error</strong>
+            <p id="error-message"></p>
+            <button onclick="location.reload()" class="pay-button" style="margin-top: 10px;">Try Again</button>
+        </div>
+    </div>
+
+    <!-- Success Section -->
+    <div id="success-section" class="success-message" style="display: none;">
+        <div class="success-icon">🎉</div>
+        <h2>Payment Successful!</h2>
+        <p>Thank you for your order.</p>
+        <p id="receipt-info" style="font-size: 14px; color: #666; margin-top: 10px;"></p>
+        <button class="pay-button" onclick="location.reload()" style="margin-top: 20px;">New Order</button>
+    </div>
+
+    <!-- Main Checkout View -->
+    <div id="checkout-view">
+        <!-- Order Details -->
+        <section class="order-summary">
+            <h3 style="margin-top: 0;">Order Summary</h3>
+            <div id="order-details">
+                <div class="loading-spinner">Loading order details...</div>
+            </div>
+        </section>
+
+        <!-- Order Totals -->
+        <section id="order-total-section" style="display: none;">
+            <div class="order-summary">
+                <div class="total-row"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
+                <div class="total-row"><span>Tip</span><span id="tip-amount">$0.00</span></div>
+                <div class="total-row final"><span>Total</span><span id="total-amount">$0.00</span></div>
+            </div>
+        </section>
+
+        <!-- Tip Selection -->
+        <section id="tip-section" style="display: none;">
+            <h3>Add a Tip</h3>
+            <div class="tip-buttons">
+                <button class="tip-btn" data-percent="0">No Tip</button>
+                <button class="tip-btn active" data-percent="15">15%</button>
+                <button class="tip-btn" data-percent="20">20%</button>
+                <button class="tip-btn" data-percent="25">25%</button>
+            </div>
+            <input type="number" id="custom-tip-input" placeholder="Custom tip amount ($)" step="0.01" min="0">
+        </section>
+
+        <!-- Payment Methods -->
+        <section id="payment-section" style="display: none;">
+            <h3>Select Payment Method</h3>
+            <div class="payment-methods">
+                <button id="pay-with-card-ngenius" class="payment-method-btn">
+                    💳 Pay with Card
+                </button>
+                <button id="pay-with-applepay-ngenius" class="payment-method-btn">
+                    🍎 Apple Pay
+                </button>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script src="js/ngenius-payment.js"></script>
+<script>
+    // Configuration
+    const urlParams = new URLSearchParams(window.location.search);
+    const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'http://localhost:8005';
+    const ORDER_ID = urlParams.get('order_id') || '8';
+    
+    // Initialize N-Genius payment handler
+    const ngeniusHandler = new NGeniusPaymentHandler(`${BACKEND_BASE_URL}/api/payments`);
+    
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('🚀 Initializing N-Genius Payment Page...');
+        console.log('Backend URL:', BACKEND_BASE_URL);
+        console.log('Order ID:', ORDER_ID);
+        
+        await ngeniusHandler.initialize(ORDER_ID);
+        
+        // Check if returning from payment (check for payment_id or ref in URL)
+        const paymentId = urlParams.get('payment_id');
+        const orderRef = urlParams.get('ref');
+        
+        if (paymentId) {
+            console.log('🔍 Checking payment status:', paymentId);
+            await ngeniusHandler.checkPaymentStatus(paymentId);
+        } else if (orderRef) {
+            console.log('🔍 Checking order reference:', orderRef);
+            // Check payment by order reference
+            await ngeniusHandler.checkPaymentByOrderRef(orderRef);
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -1,39 +1,58 @@
 /**
  * N-Genius Payment Integration for Taken Cafe
  * Handles card and Apple Pay payments through Network International (N-Genius)
+ * Version: 2.0 - Production Ready
  */
 
 class NGeniusPaymentHandler {
-    constructor(apiBaseUrl = '/api/payment') {
+    constructor(apiBaseUrl = '/api/payments') {
         this.apiBaseUrl = apiBaseUrl;
         this.currentOrder = null;
         this.currentPaymentIntent = null;
         this.hostedPaymentUrl = null;
         this.isProcessing = false;
         
-        // DOM elements
-        this.orderDetailsDiv = document.getElementById('order-details');
-        this.orderTotalSection = document.getElementById('order-total-section');
-        this.tipSection = document.getElementById('tip-section');
-        this.paymentSection = document.getElementById('payment-section');
-        this.ngeniusSection = document.getElementById('ngenius-payment-section');
-        this.successSection = document.getElementById('success-section');
-        this.errorSection = document.getElementById('error-section');
-        this.paymentStatus = document.getElementById('payment-status');
+        // DOM elements - will be initialized in init
+        this.orderDetailsDiv = null;
+        this.orderTotalSection = null;
+        this.tipSection = null;
+        this.paymentSection = null;
+        this.successSection = null;
+        this.errorSection = null;
+        this.paymentStatus = null;
         
         // Tip elements
-        this.subtotalSpan = document.getElementById('subtotal');
-        this.tipAmountSpan = document.getElementById('tip-amount');
-        this.totalAmountSpan = document.getElementById('total-amount');
-        this.customTipInput = document.getElementById('custom-tip-input');
+        this.subtotalSpan = null;
+        this.tipAmountSpan = null;
+        this.totalAmountSpan = null;
+        this.customTipInput = null;
         
         this.currentTipPercent = 15;
         this.customTip = 0;
     }
     
+    initializeElements() {
+        // Initialize DOM elements
+        this.orderDetailsDiv = document.getElementById('order-details');
+        this.orderTotalSection = document.getElementById('order-total-section');
+        this.tipSection = document.getElementById('tip-section');
+        this.paymentSection = document.getElementById('payment-section');
+        this.successSection = document.getElementById('success-section');
+        this.errorSection = document.getElementById('error-section');
+        this.paymentStatus = document.getElementById('payment-status');
+        
+        this.subtotalSpan = document.getElementById('subtotal');
+        this.tipAmountSpan = document.getElementById('tip-amount');
+        this.totalAmountSpan = document.getElementById('total-amount');
+        this.customTipInput = document.getElementById('custom-tip-input');
+    }
+    
     async initialize(orderId) {
         try {
             console.log('🚀 Initializing N-Genius Payment Handler...');
+            
+            // Initialize DOM elements first
+            this.initializeElements();
             
             // Load order details
             await this.loadOrderDetails(orderId);
@@ -179,20 +198,20 @@ class NGeniusPaymentHandler {
             
             this.showStatus('Creating payment order...', 'processing');
             
-            // Create payment intent with N-Genius
+            // Create payment with N-Genius
             const paymentData = {
-                orderId: this.currentOrder.id,
+                order_id: this.currentOrder.id,
+                payment_method: 'card',
                 amount: this.currentOrder.total_price,
-                tipAmount: this.getCurrentTip(),
-                currency: 'USD',
-                paymentMethod: 'CARD',
-                customerEmail: this.currentOrder.customer_email || '',
-                customerPhone: this.currentOrder.customer_phone || ''
+                tip_amount: this.getCurrentTip(),
+                currency: 'USD',  // Use USD for database compatibility (N-Genius will convert)
+                customer_email: this.currentOrder.customer_email || 'customer@takencafe.com',
+                customer_phone: this.currentOrder.customer_phone || ''
             };
             
             console.log('💳 Initiating card payment:', paymentData);
             
-            const response = await fetch(`${this.apiBaseUrl}`, {
+            const response = await fetch(this.apiBaseUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(paymentData)
@@ -206,16 +225,31 @@ class NGeniusPaymentHandler {
             const payment = await response.json();
             console.log('✅ Payment created:', payment);
             
-            // Extract hosted payment URL
-            const metadata = JSON.parse(payment.payment_metadata);
-            const hostedPaymentUrl = metadata.hosted_payment_url;
+            // Extract hosted payment URL from metadata
+            let hostedPaymentUrl = null;
+            if (payment.payment_metadata) {
+                try {
+                    const metadata = typeof payment.payment_metadata === 'string' 
+                        ? JSON.parse(payment.payment_metadata) 
+                        : payment.payment_metadata;
+                    hostedPaymentUrl = metadata.hosted_payment_url;
+                } catch (e) {
+                    console.error('Failed to parse payment metadata:', e);
+                }
+            }
             
             if (hostedPaymentUrl) {
                 console.log('🔗 Redirecting to N-Genius hosted payment page...');
                 this.showStatus('Redirecting to payment page...', 'processing');
+                
+                // Add payment ID to redirect URL for status checking on return
+                const returnUrl = new URL(window.location.href);
+                returnUrl.searchParams.set('payment_id', payment.payment_id);
+                
+                // Redirect to N-Genius
                 window.location.href = hostedPaymentUrl;
             } else {
-                throw new Error('No hosted payment URL returned');
+                throw new Error('No hosted payment URL returned from server');
             }
             
         } catch (error) {
@@ -237,20 +271,20 @@ class NGeniusPaymentHandler {
             
             this.showStatus('Creating Apple Pay payment order...', 'processing');
             
-            // Create payment intent with N-Genius for Apple Pay
+            // Create payment with N-Genius for Apple Pay
             const paymentData = {
-                orderId: this.currentOrder.id,
+                order_id: this.currentOrder.id,
+                payment_method: 'apple_pay',
                 amount: this.currentOrder.total_price,
-                tipAmount: this.getCurrentTip(),
-                currency: 'USD',
-                paymentMethod: 'APPLE_PAY',
-                customerEmail: this.currentOrder.customer_email || '',
-                customerPhone: this.currentOrder.customer_phone || ''
+                tip_amount: this.getCurrentTip(),
+                currency: 'USD',  // Use USD for database compatibility (N-Genius will convert)
+                customer_email: this.currentOrder.customer_email || 'customer@takencafe.com',
+                customer_phone: this.currentOrder.customer_phone || ''
             };
             
             console.log('🍎 Initiating Apple Pay payment:', paymentData);
             
-            const response = await fetch(`${this.apiBaseUrl}`, {
+            const response = await fetch(this.apiBaseUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(paymentData)
@@ -264,16 +298,31 @@ class NGeniusPaymentHandler {
             const payment = await response.json();
             console.log('✅ Apple Pay payment created:', payment);
             
-            // Extract hosted payment URL
-            const metadata = JSON.parse(payment.payment_metadata);
-            const hostedPaymentUrl = metadata.hosted_payment_url;
+            // Extract hosted payment URL from metadata
+            let hostedPaymentUrl = null;
+            if (payment.payment_metadata) {
+                try {
+                    const metadata = typeof payment.payment_metadata === 'string' 
+                        ? JSON.parse(payment.payment_metadata) 
+                        : payment.payment_metadata;
+                    hostedPaymentUrl = metadata.hosted_payment_url;
+                } catch (e) {
+                    console.error('Failed to parse payment metadata:', e);
+                }
+            }
             
             if (hostedPaymentUrl) {
                 console.log('🔗 Redirecting to N-Genius Apple Pay page...');
                 this.showStatus('Redirecting to Apple Pay...', 'processing');
+                
+                // Add payment ID to redirect URL for status checking on return
+                const returnUrl = new URL(window.location.href);
+                returnUrl.searchParams.set('payment_id', payment.payment_id);
+                
+                // Redirect to N-Genius
                 window.location.href = hostedPaymentUrl;
             } else {
-                throw new Error('No hosted payment URL returned');
+                throw new Error('No hosted payment URL returned from server');
             }
             
         } catch (error) {
@@ -287,73 +336,170 @@ class NGeniusPaymentHandler {
     
     showStatus(message, type = 'processing') {
         if (this.paymentStatus) {
-            this.paymentStatus.textContent = message;
+            this.paymentStatus.innerHTML = type === 'processing' 
+                ? `<div class="spinner"></div>${message}` 
+                : message;
             this.paymentStatus.className = `payment-status ${type}`;
             this.paymentStatus.style.display = 'block';
         }
     }
     
     showError(message) {
+        console.error('💥 Error:', message);
         if (this.paymentStatus) this.paymentStatus.style.display = 'none';
         if (this.errorSection) {
             this.errorSection.style.display = 'block';
             const errorMsg = this.errorSection.querySelector('#error-message');
             if (errorMsg) errorMsg.textContent = message;
         }
+        
+        // Hide checkout view
+        const checkoutView = document.getElementById('checkout-view');
+        if (checkoutView) checkoutView.style.display = 'none';
     }
     
-    showSuccess(message) {
+    showSuccess(message, paymentDetails = null) {
+        console.log('✅ Success:', message);
         if (this.paymentStatus) this.paymentStatus.style.display = 'none';
-        if (this.ngeniusSection) this.ngeniusSection.style.display = 'none';
+        
+        // Hide checkout view
+        const checkoutView = document.getElementById('checkout-view');
+        if (checkoutView) checkoutView.style.display = 'none';
+        
         if (this.successSection) {
             this.successSection.style.display = 'block';
             const successMsg = this.successSection.querySelector('p');
             if (successMsg) successMsg.textContent = message;
+            
+            if (paymentDetails) {
+                const receiptInfo = document.getElementById('receipt-info');
+                if (receiptInfo) {
+                    receiptInfo.innerHTML = `
+                        Payment ID: ${paymentDetails.payment_id || 'N/A'}<br>
+                        Amount: ${paymentDetails.currency || 'AED'} ${paymentDetails.total_amount || '0.00'}
+                    `;
+                }
+            }
         }
     }
     
-    // Check payment status after redirect
+    // Check payment status after redirect from N-Genius
     async checkPaymentStatus(paymentId) {
         try {
             console.log('🔍 Checking payment status for:', paymentId);
+            this.showStatus('Verifying payment...', 'processing');
             
-            const response = await fetch(`${this.apiBaseUrl}/${paymentId}`);
-            if (!response.ok) throw new Error('Could not fetch payment status');
-            
-            const payment = await response.json();
-            console.log('💰 Payment status:', payment.status);
-            
-            if (payment.status === 'COMPLETED') {
-                this.showSuccess('Payment successful! Your order has been confirmed.');
-                return true;
-            } else if (payment.status === 'FAILED') {
-                this.showError('Payment failed: ' + (payment.error_message || 'Unknown error'));
-                return false;
-            } else if (payment.status === 'AUTHORIZED') {
-                this.showStatus('Payment authorized. Waiting for confirmation...', 'processing');
-                return null; // Still pending
+            const response = await fetch(`${this.apiBaseUrl}/public/payment/${paymentId}`);
+            if (!response.ok) {
+                throw new Error('Could not fetch payment status');
             }
             
-            return null;
+            const payment = await response.json();
+            console.log('💰 Payment status:', payment);
+            
+            if (payment.status === 'completed' || payment.status === 'COMPLETED') {
+                this.showSuccess('Payment successful! Your order has been confirmed.', payment);
+                return true;
+            } else if (payment.status === 'failed' || payment.status === 'FAILED') {
+                this.showError('Payment failed: ' + (payment.error_message || 'Unknown error'));
+                return false;
+            } else if (payment.status === 'authorized' || payment.status === 'AUTHORIZED') {
+                // For N-Genius, authorized means payment is pending capture
+                this.showStatus('Payment authorized. Processing...', 'processing');
+                
+                // Try to capture the payment
+                await this.capturePayment(paymentId);
+                return null;
+            } else {
+                this.showStatus(`Payment status: ${payment.status}`, 'processing');
+                return null;
+            }
+            
         } catch (error) {
             console.error('Error checking payment status:', error);
+            this.showError('Could not verify payment status. Please contact support.');
             return null;
+        }
+    }
+    
+    // Capture authorized payment
+    async capturePayment(paymentId) {
+        try {
+            console.log('💰 Capturing payment:', paymentId);
+            
+            const response = await fetch(`${this.apiBaseUrl}/${paymentId}/capture`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            
+            if (!response.ok) {
+                throw new Error('Payment capture failed');
+            }
+            
+            const result = await response.json();
+            console.log('✅ Payment captured:', result);
+            
+            if (result.status === 'completed' || result.status === 'COMPLETED') {
+                this.showSuccess('Payment completed successfully!', result);
+            } else {
+                this.showStatus('Payment is being processed...', 'processing');
+            }
+            
+        } catch (error) {
+            console.error('Error capturing payment:', error);
+            this.showError('Payment capture failed. Please contact support.');
+        }
+    }
+    
+    // Check payment by order reference (N-Genius ref param)
+    async checkPaymentByOrderRef(orderRef) {
+        try {
+            console.log('🔍 Checking payment by order ref:', orderRef);
+            this.showStatus('Verifying payment...', 'processing');
+            
+            // Query backend for payment by provider_transaction_id
+            const response = await fetch(`${this.apiBaseUrl}?provider_transaction_id=${orderRef}`);
+            if (!response.ok) {
+                throw new Error('Could not fetch payment by order ref');
+            }
+            
+            const payments = await response.json();
+            if (payments && payments.length > 0) {
+                const payment = payments[0];
+                await this.checkPaymentStatus(payment.payment_id);
+            } else {
+                this.showError('Payment not found');
+            }
+            
+        } catch (error) {
+            console.error('Error checking payment by ref:', error);
+            this.showError('Could not verify payment. Please contact support.');
         }
     }
 }
 
 // Auto-initialize if ORDER_ID is available globally
-if (typeof ORDER_ID !== 'undefined') {
-    const ngeniusHandler = new NGeniusPaymentHandler();
+if (typeof ORDER_ID !== 'undefined' && typeof window !== 'undefined') {
+    window.ngeniusHandler = new NGeniusPaymentHandler();
     
     document.addEventListener('DOMContentLoaded', async () => {
-        await ngeniusHandler.initialize(ORDER_ID);
+        await window.ngeniusHandler.initialize(ORDER_ID);
         
         // Check for payment redirect status
         const params = new URLSearchParams(window.location.search);
         const paymentId = params.get('payment_id');
+        const orderRef = params.get('ref');
+        
         if (paymentId) {
-            await ngeniusHandler.checkPaymentStatus(paymentId);
+            await window.ngeniusHandler.checkPaymentStatus(paymentId);
+        } else if (orderRef) {
+            await window.ngeniusHandler.checkPaymentByOrderRef(orderRef);
         }
     });
+}
+
+// Export for module usage
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = NGeniusPaymentHandler;
 }

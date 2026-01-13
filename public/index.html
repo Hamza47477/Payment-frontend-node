@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Taken Cafe - Payment</title>
-    <script src="https://js.stripe.com/v3/"></script>
     <style>
         /* CSS STYLES */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f7f9fc; color: #333; display: flex; justify-content: center; padding: 20px; margin: 0; }
@@ -13,31 +12,49 @@
         h1 { margin: 0; font-size: 24px; color: #1a1f36; }
         .subtitle { color: #697386; margin-top: 5px; font-size: 14px; }
         
-        /* Order Summary */
-        .order-summary { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e6ebf1; }
-        .order-item { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
-        .total-row { display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px; color: #697386; }
-        .total-row.final { font-weight: bold; font-size: 18px; color: #1a1f36; margin-top: 15px; border-top: 2px solid #e6ebf1; padding-top: 15px; }
-
-        /* Tip Section */
-        .tip-section { margin-bottom: 25px; }
-        .tip-buttons { display: flex; gap: 10px; margin-bottom: 15px; }
-        .tip-btn { flex: 1; padding: 10px; border: 1px solid #e6ebf1; background: white; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-weight: 500; }
-        .tip-btn:hover { border-color: #5469d4; color: #5469d4; }
-        .tip-btn.active { background: #5469d4; color: white; border-color: #5469d4; }
-        input[type="number"] { width: 100%; padding: 10px; border: 1px solid #e6ebf1; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
-
-        /* Payment Form */
-        #payment-element { margin-bottom: 20px; min-height: 200px; } /* Min-height prevents layout shift */
-        .pay-button { width: 100%; padding: 12px; background: #5469d4; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        .pay-button:hover { background: #4456b3; }
-        .pay-button:disabled { background: #aab7c4; cursor: not-allowed; }
-
-        /* Status Messages */
-        .error-message { color: #cd3d64; background: #fff1f3; padding: 15px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; display: none; text-align: center; }
-        .success-message { color: #0d6efd; text-align: center; display: none; }
-        .success-icon { font-size: 48px; margin-bottom: 15px; }
-        .loading-spinner { text-align: center; color: #697386; font-size: 14px; margin: 20px 0; }
+        /* Gateway Selection */
+        .gateway-selector { margin-bottom: 30px; text-align: center; }
+        .gateway-btn { 
+            padding: 12px 24px; 
+            margin: 0 10px; 
+            border: 2px solid #e6ebf1; 
+            background: white; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .gateway-btn.active {
+            border-color: #5469d4;
+            background: #5469d4;
+            color: white;
+        }
+        .gateway-btn:hover { border-color: #5469d4; }
+        
+        .gateway-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fc;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #697386;
+        }
+        
+        #loading { text-align: center; padding: 40px; }
+        .spinner { 
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #5469d4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -48,56 +65,76 @@
         <p class="subtitle">Secure Checkout</p>
     </header>
 
-    <div id="error-container" class="error-message"></div>
+    <!-- Gateway Selector -->
+    <section class="gateway-selector">
+        <div>
+            <button id="gateway-ngenius" class="gateway-btn active" onclick="selectGateway('ngenius')">
+                🏦 N-Genius (Default)
+            </button>
+            <button id="gateway-stripe" class="gateway-btn" onclick="selectGateway('stripe')">
+                💳 Stripe
+            </button>
+        </div>
+        <div class="gateway-info">
+            <span id="gateway-info-text">Using Network International (N-Genius) for UAE payments</span>
+        </div>
+    </section>
 
-    <div id="checkout-view">
-        <section class="order-summary">
-            <div id="order-items-container">
-                <div class="loading-spinner">Loading order details...</div>
-            </div>
-            
-            <div id="totals-container" style="display: none;">
-                <div class="total-row"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
-                <div class="total-row"><span>Tip</span><span id="tip-amount">$0.00</span></div>
-                <div class="total-row final"><span>Total</span><span id="total-amount">$0.00</span></div>
-            </div>
-        </section>
-
-        <section class="tip-section" id="tip-section" style="display: none;">
-            <p style="font-size: 14px; font-weight: 500; margin-bottom: 10px;">Add a Tip</p>
-            <div class="tip-buttons">
-                <button class="tip-btn" onclick="setTip(0)">No</button>
-                <button class="tip-btn active" onclick="setTip(15)">15%</button>
-                <button class="tip-btn" onclick="setTip(20)">20%</button>
-                <button class="tip-btn" onclick="setTip(25)">25%</button>
-            </div>
-            <input type="number" id="custom-tip" placeholder="Custom tip amount ($)" oninput="setCustomTip(this.value)">
-        </section>
-
-        <section id="payment-section" style="display: none;">
-            <form id="payment-form">
-                <div id="payment-element">
-                    </div>
-                <button id="pay-button" class="pay-button">Pay Now</button>
-            </form>
-        </section>
-    </div>
-
-    <div id="success-view" class="success-message">
-        <div class="success-icon">🎉</div>
-        <h2>Payment Successful!</h2>
-        <p>Thank you for your order.</p>
-        <p id="receipt-info" style="font-size: 14px; color: #666; margin-top: 10px;"></p>
-        <button class="pay-button" onclick="location.reload()" style="margin-top: 20px;">New Order</button>
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Loading payment page...</p>
     </div>
 </div>
 
 <script>
-    // ================= CONFIGURATION =================
-    const STRIPE_KEY = 'pk_test_51SIqA4Ki3uNg2emjxfkokQEF9VXyUZjAAWo37jbWj9CMi0AhBJprVco0ZK3dIqeDBsvfHY1Ftz8SY1HV9o6xQONH0097lDkUkC';
+    // Configuration
     const urlParams = new URLSearchParams(window.location.search);
-    const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'https://livekit-mobile.linkedinwriter.io';
+    const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'http://localhost:8005';
     const ORDER_ID = urlParams.get('order_id') || '8';
+    const DEFAULT_GATEWAY = urlParams.get('gateway') || 'ngenius';  // 'ngenius' or 'stripe'
+    
+    function selectGateway(gateway) {
+        console.log('🏦 Selected gateway:', gateway);
+        
+        // Update button states
+        document.getElementById('gateway-ngenius').classList.toggle('active', gateway === 'ngenius');
+        document.getElementById('gateway-stripe').classList.toggle('active', gateway === 'stripe');
+        
+        // Update info text
+        const infoText = document.getElementById('gateway-info-text');
+        if (gateway === 'ngenius') {
+            infoText.textContent = 'Using Network International (N-Genius) for UAE payments';
+        } else {
+            infoText.textContent = 'Using Stripe for international payments';
+        }
+        
+        // Redirect to appropriate payment page
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('gateway', gateway);
+        
+        if (gateway === 'ngenius') {
+            window.location.href = `index-ngenius.html?order_id=${ORDER_ID}&backend_base_url=${encodeURIComponent(BACKEND_BASE_URL)}`;
+        } else {
+            window.location.href = `index-stripe.html?order_id=${ORDER_ID}&backend_base_url=${encodeURIComponent(BACKEND_BASE_URL)}`;
+        }
+    }
+    
+    // Auto-redirect based on default gateway
+    window.addEventListener('DOMContentLoaded', () => {
+        console.log('🚀 Payment Gateway Selector');
+        console.log('Backend URL:', BACKEND_BASE_URL);
+        console.log('Order ID:', ORDER_ID);
+        console.log('Default Gateway:', DEFAULT_GATEWAY);
+        
+        // Auto-select default gateway after 2 seconds
+        setTimeout(() => {
+            selectGateway(DEFAULT_GATEWAY);
+        }, 2000);
+    });
+</script>
+
+</body>
+</html>
     // =================================================
 
     // State Variables
