@@ -399,8 +399,12 @@
     // --- FUNCTION: Load Order ---
     async function loadOrder() {
         try {
-            const res = await fetch(`${BACKEND_BASE_URL}/api/orders/${ORDER_ID}`);
-            if (!res.ok) throw new Error(`Order API returned ${res.status}`);
+            // Use public endpoint that doesn't require authentication
+            const res = await fetch(`${BACKEND_BASE_URL}/api/payments/public/order/${ORDER_ID}`);
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.detail || `Order API returned ${res.status}`);
+            }
             
             currentOrder = await res.json();
             console.log("✅ Order Loaded:", currentOrder);

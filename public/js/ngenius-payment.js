@@ -51,7 +51,8 @@ class NGeniusPaymentHandler {
     
     async loadOrderDetails(orderId) {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/order/${orderId}`);
+            // Use public endpoint (no auth required)
+            const response = await fetch(`${this.apiBaseUrl}/public/order/${orderId}`);
             if (!response.ok) throw new Error('Order not found');
             
             this.currentOrder = await response.json();
