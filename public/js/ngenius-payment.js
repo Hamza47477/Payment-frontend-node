@@ -224,19 +224,12 @@ class NGeniusPaymentHandler {
             
             const payment = await response.json();
             console.log('✅ Payment created:', payment);
+            console.log('🔍 Full payment response structure:', JSON.stringify(payment, null, 2));
+            console.log('🔍 hosted_payment_url value:', payment.hosted_payment_url);
+            console.log('🔍 typeof hosted_payment_url:', typeof payment.hosted_payment_url);
             
-            // Extract hosted payment URL from metadata
-            let hostedPaymentUrl = null;
-            if (payment.payment_metadata) {
-                try {
-                    const metadata = typeof payment.payment_metadata === 'string' 
-                        ? JSON.parse(payment.payment_metadata) 
-                        : payment.payment_metadata;
-                    hostedPaymentUrl = metadata.hosted_payment_url;
-                } catch (e) {
-                    console.error('Failed to parse payment metadata:', e);
-                }
-            }
+            // Get hosted payment URL directly from response
+            const hostedPaymentUrl = payment.hosted_payment_url;
             
             if (hostedPaymentUrl) {
                 console.log('🔗 Redirecting to N-Genius hosted payment page...');
@@ -297,19 +290,12 @@ class NGeniusPaymentHandler {
             
             const payment = await response.json();
             console.log('✅ Apple Pay payment created:', payment);
+            console.log('🔍 Full payment response structure:', JSON.stringify(payment, null, 2));
+            console.log('🔍 hosted_payment_url value:', payment.hosted_payment_url);
+            console.log('🔍 typeof hosted_payment_url:', typeof payment.hosted_payment_url);
             
-            // Extract hosted payment URL from metadata
-            let hostedPaymentUrl = null;
-            if (payment.payment_metadata) {
-                try {
-                    const metadata = typeof payment.payment_metadata === 'string' 
-                        ? JSON.parse(payment.payment_metadata) 
-                        : payment.payment_metadata;
-                    hostedPaymentUrl = metadata.hosted_payment_url;
-                } catch (e) {
-                    console.error('Failed to parse payment metadata:', e);
-                }
-            }
+            // Get hosted payment URL directly from response
+            const hostedPaymentUrl = payment.hosted_payment_url;
             
             if (hostedPaymentUrl) {
                 console.log('🔗 Redirecting to N-Genius Apple Pay page...');
