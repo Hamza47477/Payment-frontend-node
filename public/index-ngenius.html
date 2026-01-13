@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taken Cafe - Payment</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        /* CSS STYLES */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333; 
+            display: flex; 
+            justify-content: center; 
+            min-height: 100vh;
+            padding: 20px; 
+        }
+        
+        .container { 
+            background: white; 
+            width: 100%; 
+            max-width: 480px; 
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
+        }
+        
+        header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+        }
+        
+        h1 { 
+            margin: 0; 
+            font-size: 24px; 
+            color: #1a1f36; 
+            margin-bottom: 5px;
+        }
+        
+        .subtitle { 
+            color: #697386; 
+            font-size: 14px; 
+        }
+        
+        /* Payment Gateway Selector */
+        .gateway-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            justify-content: center;
+        }
+        
+        .gateway-btn {
+            padding: 10px 20px;
+            border: 2px solid #e6ebf1;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            font-size: 13px;
+        }
+        
+        .gateway-btn:hover {
+            border-color: #5469d4;
+            color: #5469d4;
+        }
+        
+        .gateway-btn.active {
+            background: #5469d4;
+            color: white;
+            border-color: #5469d4;
+        }
+        
+        /* Order Summary */
+        .order-summary { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin-bottom: 25px; 
+            border: 1px solid #e6ebf1; 
+        }
+        
+        .order-item { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 10px; 
+            font-size: 14px; 
+        }
+        
+        .total-row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-top: 10px; 
+            font-size: 14px; 
+            color: #697386; 
+        }
+        
+        .total-row.final { 
+            font-weight: bold; 
+            font-size: 18px; 
+            color: #1a1f36; 
+            margin-top: 15px; 
+            border-top: 2px solid #e6ebf1; 
+            padding-top: 15px; 
+        }
+
+        /* Tip Section */
+        .tip-section { 
+            margin-bottom: 25px; 
+        }
+        
+        .tip-section label {
+            font-size: 14px;
+            font-weight: 500;
+            display: block;
+            margin-bottom: 10px;
+        }
+        
+        .tip-buttons { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 15px; 
+        }
+        
+        .tip-btn { 
+            flex: 1; 
+            padding: 10px; 
+            border: 1px solid #e6ebf1; 
+            background: white; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            font-weight: 500; 
+            font-size: 13px;
+        }
+        
+        .tip-btn:hover { 
+            border-color: #5469d4; 
+            color: #5469d4; 
+        }
+        
+        .tip-btn.active { 
+            background: #5469d4; 
+            color: white; 
+            border-color: #5469d4; 
+        }
+        
+        input[type="number"] { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #e6ebf1; 
+            border-radius: 6px; 
+            font-size: 14px; 
+        }
+
+        /* Payment Section */
+        .payment-methods {
+            display: none;
+            margin-bottom: 20px;
+        }
+        
+        .payment-methods.active {
+            display: block;
+        }
+        
+        .payment-method-btn {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 10px;
+            border: 2px solid #e6ebf1;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .payment-method-btn:hover {
+            border-color: #5469d4;
+            color: #5469d4;
+        }
+        
+        .payment-method-btn.active {
+            background: #5469d4;
+            color: white;
+            border-color: #5469d4;
+        }
+
+        /* Stripe Payment Form */
+        #payment-element { 
+            margin-bottom: 20px; 
+            min-height: 200px; 
+        }
+        
+        .pay-button { 
+            width: 100%; 
+            padding: 14px; 
+            background: #5469d4; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: background 0.2s; 
+        }
+        
+        .pay-button:hover:not(:disabled) { 
+            background: #4456b3; 
+        }
+        
+        .pay-button:disabled { 
+            background: #aab7c4; 
+            cursor: not-allowed; 
+        }
+
+        /* Status Messages */
+        .error-message { 
+            color: #cd3d64; 
+            background: #fff1f3; 
+            padding: 15px; 
+            border-radius: 6px; 
+            font-size: 14px; 
+            margin-bottom: 20px; 
+            display: none; 
+            text-align: center; 
+            border-left: 4px solid #cd3d64;
+        }
+        
+        .success-message { 
+            color: #0d6efd; 
+            text-align: center; 
+            display: none; 
+        }
+        
+        .success-icon { 
+            font-size: 48px; 
+            margin-bottom: 15px; 
+        }
+        
+        .loading-spinner { 
+            text-align: center; 
+            color: #697386; 
+            font-size: 14px; 
+            margin: 20px 0; 
+        }
+        
+        .status-message {
+            text-align: center;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 14px;
+        }
+        
+        .status-message.processing {
+            background: #e7f5ff;
+            color: #0366d6;
+            display: block;
+        }
+        
+        .status-message.error {
+            background: #fff1f3;
+            color: #cd3d64;
+            display: block;
+        }
+        
+        .status-message.success {
+            background: #f0f3e1;
+            color: #4d5b1a;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>☕ Taken Cafe</h1>
+        <p class="subtitle">Secure Checkout</p>
+    </header>
+
+    <!-- Payment Gateway Selector -->
+    <div class="gateway-selector">
+        <button class="gateway-btn active" data-gateway="stripe" onclick="selectGateway('stripe')">💳 Stripe</button>
+        <button class="gateway-btn" data-gateway="ngenius" onclick="selectGateway('ngenius')">🔐 N-Genius</button>
+    </div>
+
+    <div id="error-container" class="error-message"></div>
+    <div id="status-message" class="status-message"></div>
+
+    <div id="checkout-view">
+        <!-- Order Summary -->
+        <section class="order-summary">
+            <div id="order-items-container">
+                <div class="loading-spinner">Loading order details...</div>
+            </div>
+            
+            <div id="totals-container" style="display: none;">
+                <div class="total-row"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
+                <div class="total-row"><span>Tip</span><span id="tip-amount">$0.00</span></div>
+                <div class="total-row final"><span>Total</span><span id="total-amount">$0.00</span></div>
+            </div>
+        </section>
+
+        <!-- Tip Section -->
+        <section class="tip-section" id="tip-section" style="display: none;">
+            <label>Add a Tip</label>
+            <div class="tip-buttons">
+                <button type="button" class="tip-btn" onclick="setTip(0)">No Tip</button>
+                <button type="button" class="tip-btn active" onclick="setTip(15)">15%</button>
+                <button type="button" class="tip-btn" onclick="setTip(20)">20%</button>
+                <button type="button" class="tip-btn" onclick="setTip(25)">25%</button>
+            </div>
+            <input type="number" id="custom-tip" placeholder="Custom tip amount ($)" oninput="setCustomTip(this.value)">
+        </section>
+
+        <!-- Stripe Payment Section -->
+        <section id="stripe-section" style="display: none;">
+            <form id="payment-form">
+                <div id="payment-element"></div>
+                <button id="stripe-pay-button" type="submit" class="pay-button">Pay with Stripe</button>
+            </form>
+        </section>
+
+        <!-- N-Genius Payment Section -->
+        <section id="ngenius-section" style="display: none;">
+            <div class="payment-methods" id="ngenius-methods">
+                <button type="button" class="payment-method-btn" id="pay-with-card-ngenius" onclick="initiateCardPayment()">
+                    💳 Pay with Card
+                </button>
+                <button type="button" class="payment-method-btn" id="pay-with-applepay-ngenius" onclick="initiateApplePayPayment()" style="display: none;">
+                    🍎 Pay with Apple Pay
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Success View -->
+    <div id="success-view" class="success-message">
+        <div class="success-icon">🎉</div>
+        <h2>Payment Successful!</h2>
+        <p>Thank you for your order.</p>
+        <p id="receipt-info" style="font-size: 14px; color: #666; margin-top: 10px;"></p>
+        <button class="pay-button" onclick="location.reload()" style="margin-top: 20px;">New Order</button>
+    </div>
+</div>
+
+<!-- Load payment handlers -->
+<script src="js/ngenius-payment.js"></script>
+
+<script>
+    // ================= CONFIGURATION =================
+    const STRIPE_KEY = 'pk_test_51SIqA4Ki3uNg2emjxfkokQEF9VXyUZjAAWo37jbWj9CMi0AhBJprVco0ZK3dIqeDBsvfHY1Ftz8SY1HV9o6xQONH0097lDkUkC';
+    const urlParams = new URLSearchParams(window.location.search);
+    const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'https://livekit-mobile.linkedinwriter.io';
+    const ORDER_ID = urlParams.get('order_id') || '8';
+    // =================================================
+
+    // State Variables
+    let stripe, elements, paymentElement;
+    let currentOrder = null;
+    let currentTipPercent = 15;
+    let customTip = 0;
+    let currentClientSecret = null;
+    let currentGateway = 'stripe'; // Default gateway
+    let updateTimer = null;
+
+    // Initialize App
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log(`🚀 Starting Taken Cafe Payment. Backend: ${BACKEND_BASE_URL}`);
+        
+        try {
+            stripe = Stripe(STRIPE_KEY);
+            
+            // Load the Order
+            await loadOrder();
+
+            // Initialize Stripe Payment Element
+            await initializePaymentElement();
+            
+            // Check for Apple Pay support
+            checkApplePaySupport();
+
+        } catch (error) {
+            showError(`Initialization Failed: ${error.message}`);
+        }
+    });
+
+    // --- FUNCTION: Load Order ---
+    async function loadOrder() {
+        try {
+            const res = await fetch(`${BACKEND_BASE_URL}/api/orders/${ORDER_ID}`);
+            if (!res.ok) throw new Error(`Order API returned ${res.status}`);
+            
+            currentOrder = await res.json();
+            console.log("✅ Order Loaded:", currentOrder);
+            
+            renderOrderDetails();
+            updateTotals();
+
+            // Reveal UI
+            document.getElementById('tip-section').style.display = 'block';
+
+        } catch (err) {
+            console.error(err);
+            throw new Error(`Could not load order. Check console.`);
+        }
+    }
+
+    // --- FUNCTION: Select Payment Gateway ---
+    function selectGateway(gateway) {
+        currentGateway = gateway;
+        
+        // Update button states
+        document.querySelectorAll('.gateway-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-gateway="${gateway}"]`).classList.add('active');
+        
+        // Show/hide payment sections
+        if (gateway === 'stripe') {
+            document.getElementById('stripe-section').style.display = 'block';
+            document.getElementById('ngenius-section').style.display = 'none';
+        } else {
+            document.getElementById('stripe-section').style.display = 'none';
+            document.getElementById('ngenius-section').style.display = 'block';
+        }
+    }
+
+    // --- FUNCTION: Check Apple Pay Support ---
+    function checkApplePaySupport() {
+        if (window.ApplePaySession && ApplePaySession.canMakePayments()) {
+            console.log('✅ Apple Pay is supported');
+            document.getElementById('pay-with-applepay-ngenius').style.display = 'block';
+        } else {
+            console.log('⚠️ Apple Pay is not supported on this device');
+        }
+    }
+
+    // --- FUNCTION: Initialize Payment Element ---
+    async function initializePaymentElement() {
+        try {
+            const clientSecret = await createOrUpdatePaymentIntent();
+            
+            const appearance = { theme: 'stripe' };
+            elements = stripe.elements({ appearance, clientSecret });
+            
+            paymentElement = elements.create('payment', {
+                layout: 'tabs'
+            });
+            
+            paymentElement.mount('#payment-element');
+            
+            document.getElementById('stripe-section').style.display = 'block';
+            document.getElementById('payment-form').addEventListener('submit', handleSubmit);
+
+        } catch (error) {
+            showError("Failed to load payment form: " + error.message);
+        }
+    }
+
+    // --- FUNCTION: Create or Update Payment Intent ---
+    async function createOrUpdatePaymentIntent() {
+        const subtotal = currentOrder.total_price;
+        const tipAmount = (customTip > 0) ? customTip : (subtotal * currentTipPercent / 100);
+        
+        console.log(`Creating/Updating Intent for Tip: $${tipAmount}`);
+
+        const res = await fetch(`${BACKEND_BASE_URL}/api/payments/intents`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                order_id: parseInt(ORDER_ID),
+                currency: 'USD',
+                tip_amount: tipAmount
+            })
+        });
+
+        if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(`Backend Error: ${txt}`);
+        }
+
+        const data = await res.json();
+        currentClientSecret = data.client_secret;
+        return data.client_secret;
+    }
+
+    // --- FUNCTION: Handle Stripe Payment Submission ---
+    async function handleSubmit(e) {
+        e.preventDefault();
+        
+        const btn = document.getElementById('stripe-pay-button');
+        btn.disabled = true;
+        btn.textContent = "Processing...";
+        hideError();
+
+        if (!stripe || !elements) return;
+
+        const { error, paymentIntent } = await stripe.confirmPayment({
+            elements,
+            confirmParams: {
+                return_url: window.location.href + '?status=success',
+            },
+            redirect: 'if_required' 
+        });
+
+        if (error) {
+            console.error("Payment Error:", error);
+            showError(error.message);
+            btn.disabled = false;
+            btn.textContent = "Pay with Stripe";
+        } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+            console.log("✅ Payment Succeeded:", paymentIntent);
+            await recordSuccess(paymentIntent);
+            showSuccess(paymentIntent.amount / 100, paymentIntent.id);
+        }
+    }
+
+    // --- FUNCTION: Record Success ---
+    async function recordSuccess(paymentIntent) {
+        try {
+            const tipAmount = (paymentIntent.amount / 100) - currentOrder.total_price;
+            console.log(`Recording payment: amount=${paymentIntent.amount / 100}, tip=${tipAmount}`);
+            
+            const response = await fetch(`/api/payment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    order_id: parseInt(ORDER_ID),
+                    payment_method: 'card',
+                    amount: currentOrder.total_price,
+                    tip_amount: tipAmount,
+                    currency: 'USD',
+                    stripe_payment_intent_id: paymentIntent.id,
+                    stripe_charge_id: paymentIntent.latest_charge
+                })
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("❌ Backend error:", response.status, errorText);
+                return;
+            }
+            
+            const result = await response.json();
+            console.log("✅ Payment recorded in backend:", result);
+        } catch (err) {
+            console.error("❌ Backend recording failed:", err);
+        }
+    }
+
+    // --- N-GENIUS PAYMENT FUNCTIONS ---
+    async function initiateCardPayment() {
+        try {
+            const btn = document.getElementById('pay-with-card-ngenius');
+            btn.disabled = true;
+            showStatus('Creating card payment order...', 'processing');
+            
+            const paymentData = {
+                orderId: currentOrder.id,
+                amount: currentOrder.total_price,
+                tipAmount: (customTip > 0) ? customTip : (currentOrder.total_price * currentTipPercent / 100),
+                currency: 'USD',
+                paymentMethod: 'CARD',
+                customerEmail: currentOrder.customer_email || '',
+                customerPhone: currentOrder.customer_phone || ''
+            };
+            
+            console.log('💳 Initiating card payment via N-Genius:', paymentData);
+            
+            const response = await fetch(`${BACKEND_BASE_URL}/api/payments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(paymentData)
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Payment creation failed');
+            }
+            
+            const payment = await response.json();
+            console.log('✅ Payment created:', payment);
+            
+            const metadata = JSON.parse(payment.payment_metadata || '{}');
+            const hostedPaymentUrl = metadata.hosted_payment_url;
+            
+            if (hostedPaymentUrl) {
+                console.log('🔗 Redirecting to N-Genius hosted payment page...');
+                showStatus('Redirecting to payment page...', 'processing');
+                window.location.href = hostedPaymentUrl;
+            } else {
+                throw new Error('No hosted payment URL returned');
+            }
+            
+        } catch (error) {
+            console.error('Card payment error:', error);
+            showError('Card payment failed: ' + error.message);
+            const btn = document.getElementById('pay-with-card-ngenius');
+            btn.disabled = false;
+        }
+    }
+
+    async function initiateApplePayPayment() {
+        try {
+            const btn = document.getElementById('pay-with-applepay-ngenius');
+            btn.disabled = true;
+            showStatus('Creating Apple Pay payment order...', 'processing');
+            
+            const paymentData = {
+                orderId: currentOrder.id,
+                amount: currentOrder.total_price,
+                tipAmount: (customTip > 0) ? customTip : (currentOrder.total_price * currentTipPercent / 100),
+                currency: 'USD',
+                paymentMethod: 'APPLE_PAY',
+                customerEmail: currentOrder.customer_email || '',
+                customerPhone: currentOrder.customer_phone || ''
+            };
+            
+            console.log('🍎 Initiating Apple Pay via N-Genius:', paymentData);
+            
+            const response = await fetch(`${BACKEND_BASE_URL}/api/payments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(paymentData)
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Payment creation failed');
+            }
+            
+            const payment = await response.json();
+            console.log('✅ Apple Pay payment created:', payment);
+            
+            const metadata = JSON.parse(payment.payment_metadata || '{}');
+            const hostedPaymentUrl = metadata.hosted_payment_url;
+            
+            if (hostedPaymentUrl) {
+                console.log('🔗 Redirecting to N-Genius Apple Pay page...');
+                showStatus('Redirecting to Apple Pay...', 'processing');
+                window.location.href = hostedPaymentUrl;
+            } else {
+                throw new Error('No hosted payment URL returned');
+            }
+            
+        } catch (error) {
+            console.error('Apple Pay error:', error);
+            showError('Apple Pay failed: ' + error.message);
+            const btn = document.getElementById('pay-with-applepay-ngenius');
+            btn.disabled = false;
+        }
+    }
+
+    // --- HELPER: Tip Logic with Debounce ---
+    async function handleTipChange() {
+        updateTotals();
+        
+        const btn = document.getElementById('stripe-pay-button');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = "Updating Total...";
+        }
+
+        clearTimeout(updateTimer);
+        updateTimer = setTimeout(async () => {
+            try {
+                const newClientSecret = await createOrUpdatePaymentIntent();
+                if (elements) {
+                    elements.fetchUpdates();
+                }
+                
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = "Pay with Stripe";
+                }
+            } catch (error) {
+                console.error("Failed to update tip:", error);
+                showError("Could not update tip amount. Please refresh.");
+            }
+        }, 500);
+    }
+
+    window.setTip = function(percent) {
+        currentTipPercent = percent;
+        customTip = 0;
+        document.getElementById('custom-tip').value = '';
+        
+        document.querySelectorAll('.tip-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelectorAll('.tip-btn').forEach(btn => {
+            const btnText = btn.textContent.toLowerCase();
+            if((percent === 0 && btnText.includes('no')) || (percent > 0 && btnText.includes(percent))) {
+                btn.classList.add('active');
+            }
+        });
+        handleTipChange();
+    }
+
+    window.setCustomTip = function(val) {
+        customTip = parseFloat(val) || 0;
+        document.querySelectorAll('.tip-btn').forEach(b => b.classList.remove('active'));
+        handleTipChange();
+    }
+
+    // --- HELPER: UI Logic ---
+    function renderOrderDetails() {
+        const container = document.getElementById('order-items-container');
+        if (!currentOrder.items || currentOrder.items.length === 0) {
+            container.innerHTML = '<p>No items in order.</p>';
+            return;
+        }
+        let html = '';
+        currentOrder.items.forEach(item => {
+            html += `
+            <div class="order-item">
+                <span>${item.product_id} <span style="color:#8898aa">x${item.quantity}</span></span>
+                <span>$${item.price.toFixed(2)}</span>
+            </div>`;
+        });
+        container.innerHTML = html;
+        document.getElementById('totals-container').style.display = 'block';
+    }
+
+    function updateTotals() {
+        const subtotal = currentOrder.total_price;
+        const tip = (customTip > 0) ? customTip : (subtotal * currentTipPercent / 100);
+        const total = subtotal + tip;
+
+        document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+        document.getElementById('tip-amount').textContent = `$${tip.toFixed(2)}`;
+        document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('error-container');
+        el.style.display = 'block';
+        el.innerHTML = `<strong>Error:</strong> ${msg}`;
+    }
+    
+    function hideError() {
+        document.getElementById('error-container').style.display = 'none';
+    }
+    
+    function showStatus(msg, type) {
+        const el = document.getElementById('status-message');
+        el.textContent = msg;
+        el.className = `status-message ${type}`;
+    }
+
+    function showSuccess(amount, id) {
+        document.getElementById('checkout-view').style.display = 'none';
+        document.getElementById('success-view').style.display = 'block';
+        document.getElementById('receipt-info').innerHTML = `Amount Paid: $${amount.toFixed(2)}<br>Transaction ID: ${id}`;
+    }
+</script>
+
+</body>
+</html>
