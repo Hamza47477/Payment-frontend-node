@@ -6,17 +6,54 @@
     <title>Taken Cafe - Payment</title>
     <style>
         /* CSS STYLES */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f7f9fc; color: #333; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .container { background: white; width: 100%; max-width: 480px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        header { text-align: center; margin-bottom: 30px; }
-        h1 { margin: 0; font-size: 24px; color: #1a1f36; }
-        .subtitle { color: #697386; margin-top: 5px; font-size: 14px; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background-color: #f7f9fc; 
+            color: #333; 
+            display: flex; 
+            justify-content: center; 
+            padding: 20px; 
+            margin: 0; 
+        }
+        
+        .container { 
+            background: white; 
+            width: 100%; 
+            max-width: 480px; 
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+        }
+        
+        header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+        }
+        
+        h1 { 
+            margin: 0; 
+            font-size: 24px; 
+            color: #1a1f36; 
+        }
+        
+        .subtitle { 
+            color: #697386; 
+            margin-top: 5px; 
+            font-size: 14px; 
+        }
         
         /* Order Input Section */
         .order-input-section {
             text-align: center;
             padding: 20px 0;
         }
+        
+        .order-input-section h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #1a1f36;
+        }
+        
         .order-input-section input {
             width: 100%;
             padding: 12px;
@@ -26,10 +63,13 @@
             margin-bottom: 15px;
             box-sizing: border-box;
         }
+        
         .order-input-section input:focus {
             outline: none;
             border-color: #5469d4;
+            box-shadow: 0 0 0 3px rgba(84, 105, 212, 0.1);
         }
+        
         .btn-primary {
             background: #5469d4;
             color: white;
@@ -42,16 +82,29 @@
             width: 100%;
             transition: background 0.3s;
         }
+        
         .btn-primary:hover {
             background: #4053b8;
         }
+        
         .btn-primary:disabled {
             background: #9ca9df;
             cursor: not-allowed;
         }
         
         /* Gateway Selection */
-        .gateway-selector { margin-bottom: 30px; text-align: center; display: none; }
+        .gateway-selector { 
+            margin-bottom: 30px; 
+            text-align: center; 
+            display: none; 
+        }
+        
+        .gateway-selector h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #1a1f36;
+        }
+        
         .gateway-btn { 
             padding: 12px 24px; 
             margin: 0 10px; 
@@ -63,12 +116,16 @@
             font-weight: 600;
             transition: all 0.3s;
         }
+        
         .gateway-btn.active {
             border-color: #5469d4;
             background: #5469d4;
             color: white;
         }
-        .gateway-btn:hover { border-color: #5469d4; }
+        
+        .gateway-btn:hover { 
+            border-color: #5469d4; 
+        }
         
         .gateway-info {
             margin-top: 15px;
@@ -79,7 +136,50 @@
             color: #697386;
         }
         
-        #loading { text-align: center; padding: 40px; display: none; }
+        /* Order Details Display */
+        .order-details-display {
+            background: #f8f9fc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .order-details-display h3 {
+            margin-top: 0;
+            font-size: 16px;
+            color: #1a1f36;
+        }
+        
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e6ebf1;
+            font-size: 14px;
+        }
+        
+        .order-item:last-child {
+            border-bottom: none;
+        }
+        
+        .order-total {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-weight: 600;
+            font-size: 16px;
+            color: #1a1f36;
+            margin-top: 10px;
+            border-top: 2px solid #e6ebf1;
+        }
+        
+        #loading { 
+            text-align: center; 
+            padding: 40px; 
+            display: none; 
+        }
+        
         .spinner { 
             border: 4px solid #f3f3f3;
             border-top: 4px solid #5469d4;
@@ -89,10 +189,12 @@
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
         }
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
         .error-message {
             background: #f8d7da;
             color: #721c24;
@@ -100,6 +202,17 @@
             border-radius: 8px;
             margin: 15px 0;
             display: none;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: none;
+            border: 1px solid #c3e6cb;
         }
     </style>
 </head>
@@ -111,22 +224,44 @@
         <p class="subtitle">Secure Checkout</p>
     </header>
 
+    <!-- Error Message Display -->
+    <div id="error-message" class="error-message"></div>
+    
+    <!-- Success Message Display -->
+    <div id="success-message" class="success-message"></div>
+
     <!-- Order ID Input Section (First Step) -->
     <section id="order-input-section" class="order-input-section">
-        <h2 style="font-size: 18px; margin-bottom: 20px;">Enter Your Order ID</h2>
-        <input type="number" id="order-id-input" placeholder="Order ID" min="1" />
-        <div id="error-message" class="error-message"></div>
+        <h2>Enter Your Order ID</h2>
+        <input 
+            type="number" 
+            id="order-id-input" 
+            placeholder="Order ID" 
+            min="1" 
+            autocomplete="off"
+        />
         <button id="load-order-btn" class="btn-primary">Load Order</button>
     </section>
 
+    <!-- Order Details Preview -->
+    <div id="order-details-display" class="order-details-display">
+        <h3>Order Summary</h3>
+        <div id="order-items-list"></div>
+        <div class="order-total">
+            <span>Total Amount:</span>
+            <span id="order-total-amount">$0.00</span>
+        </div>
+    </div>
+
     <!-- Gateway Selector (Second Step) -->
-    <section class="gateway-selector" id="gateway-selector">
+    <section id="gateway-selector" class="gateway-selector">
+        <h2>Select Payment Gateway</h2>
         <div>
             <button id="gateway-ngenius" class="gateway-btn active" onclick="selectGateway('ngenius')">
-                🏦 N-Genius (Default)
+                🏦 N-Genius Payment
             </button>
             <button id="gateway-stripe" class="gateway-btn" onclick="selectGateway('stripe')">
-                💳 Stripe
+                💳 Stripe Payment
             </button>
         </div>
         <div class="gateway-info">
@@ -142,21 +277,28 @@
 </div>
 
 <script>
-    // Configuration - Use live server
+    // ========== CONFIGURATION ==========
     const BACKEND_BASE_URL = 'https://livekit-mobile.linkedinwriter.io';
-    const DEFAULT_GATEWAY = 'ngenius';  // 'ngenius' or 'stripe'
+    const API_BASE_URL = `${BACKEND_BASE_URL}/api`;
+    const DEFAULT_GATEWAY = 'ngenius';
     
+    // ========== STATE VARIABLES ==========
+    let currentOrder = null;
+    let ORDER_ID = null;
     let currentOrder = null;
     let ORDER_ID = null;
     
-    let currentOrder = null;
-    let ORDER_ID = null;
+    // ========== MAIN FUNCTIONS ==========
     
-    // Load order from backend by ID
+    /**
+     * Load order details from backend API
+     * Fetches order from /api/orders/{orderId} endpoint
+     */
     async function loadOrderById(orderId) {
         const loadingSection = document.getElementById('loading');
         const errorDiv = document.getElementById('error-message');
         const loadBtn = document.getElementById('load-order-btn');
+        const orderDetailsDisplay = document.getElementById('order-details-display');
         
         try {
             loadBtn.disabled = true;
@@ -164,38 +306,47 @@
             loadingSection.style.display = 'block';
             errorDiv.style.display = 'none';
             
-            console.log(`🔍 Fetching order ${orderId} from ${BACKEND_BASE_URL}/api/orders/${orderId}`);
+            console.log(`🔍 Fetching order ${orderId} from ${API_BASE_URL}/orders/${orderId}`);
             
-            const response = await fetch(`${BACKEND_BASE_URL}/api/orders/${orderId}`);
+            // Fetch order from backend
+            const response = await fetch(`${API_BASE_URL}/orders/${orderId}`);
             
             if (!response.ok) {
+                let errorMsg = `Failed to load order`;
+                
                 if (response.status === 404) {
-                    throw new Error(`Order #${orderId} not found. Please check your order ID.`);
+                    errorMsg = `Order #${orderId} not found. Please check your order ID.`;
                 } else if (response.status === 403) {
-                    throw new Error('Access denied to this order.');
-                } else {
-                    throw new Error(`Failed to load order: ${response.statusText}`);
+                    errorMsg = 'Access denied to this order.';
+                } else if (response.status === 500) {
+                    errorMsg = 'Server error. Please try again later.';
                 }
+                
+                throw new Error(errorMsg);
             }
             
             currentOrder = await response.json();
             ORDER_ID = orderId;
             
-            console.log('✅ Order loaded:', currentOrder);
+            console.log('✅ Order loaded successfully:', currentOrder);
             
-            // Show gateway selector
+            // Display order details
+            displayOrderDetails(currentOrder);
+            
+            // Hide input section, show gateway selector and order details
             document.getElementById('order-input-section').style.display = 'none';
+            orderDetailsDisplay.style.display = 'block';
             document.getElementById('gateway-selector').style.display = 'block';
             loadingSection.style.display = 'none';
             
-            // Auto-redirect to payment page after 1.5 seconds
+            // Auto-redirect to payment page after 2 seconds
             setTimeout(() => {
                 selectGateway(DEFAULT_GATEWAY);
-            }, 1500);
+            }, 2000);
             
         } catch (error) {
             console.error('❌ Error loading order:', error);
-            errorDiv.textContent = error.message;
+            errorDiv.textContent = `⚠️ ${error.message}`;
             errorDiv.style.display = 'block';
             loadBtn.disabled = false;
             loadBtn.textContent = 'Load Order';
@@ -203,8 +354,44 @@
         }
     }
     
+    /**
+     * Display order details in the preview section
+     */
+    function displayOrderDetails(order) {
+        const itemsList = document.getElementById('order-items-list');
+        const totalAmount = document.getElementById('order-total-amount');
+        
+        if (!order.items || order.items.length === 0) {
+            itemsList.innerHTML = '<p style="color: #697386; font-size: 14px;">No items in this order</p>';
+            totalAmount.textContent = '$0.00';
+            return;
+        }
+        
+        let html = '';
+        order.items.forEach(item => {
+            const itemTotal = (item.price * item.quantity).toFixed(2);
+            html += `
+                <div class="order-item">
+                    <span>${item.product_id || item.name || 'Product'} (×${item.quantity})</span>
+                    <span>$${itemTotal}</span>
+                </div>
+            `;
+        });
+        
+        itemsList.innerHTML = html;
+        totalAmount.textContent = `$${order.total_price.toFixed(2)}`;
+    }
+    
+    /**
+     * Select payment gateway and redirect
+     */
     function selectGateway(gateway) {
         console.log('🏦 Selected gateway:', gateway);
+        
+        if (!ORDER_ID) {
+            console.error('❌ No order ID set');
+            return;
+        }
         
         // Update button states
         document.getElementById('gateway-ngenius').classList.toggle('active', gateway === 'ngenius');
@@ -218,37 +405,64 @@
             infoText.textContent = 'Using Stripe for international payments';
         }
         
-        // Redirect to appropriate payment page with order ID
-        if (gateway === 'ngenius') {
-            window.location.href = `index-ngenius.html?order_id=${ORDER_ID}&backend_base_url=${encodeURIComponent(BACKEND_BASE_URL)}`;
-        } else {
-            window.location.href = `index-stripe.html?order_id=${ORDER_ID}&backend_base_url=${encodeURIComponent(BACKEND_BASE_URL)}`;
-        }
+        // Show loading
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('loading-text').textContent = `Redirecting to ${gateway === 'ngenius' ? 'N-Genius' : 'Stripe'} payment...`;
+        
+        // Redirect to appropriate payment page with order ID and backend URL
+        setTimeout(() => {
+            if (gateway === 'ngenius') {
+                window.location.href = `index-ngenius.html?order_id=${ORDER_ID}&backend_base_url=${encodeURIComponent(BACKEND_BASE_URL)}`;
+            } else {
+                window.location.href = `index-stripe.html?order_id=${ORDER_ID}&backend_base_url=${encodeURIComponent(BACKEND_BASE_URL)}`;
+            }
+        }, 500);
     }
     
-    // Initialize app on page load
-    window.addEventListener('DOMContentLoaded', () => {
+    /**
+     * Show error message
+     */
+    function showError(message) {
+        const errorDiv = document.getElementById('error-message');
+        errorDiv.textContent = `⚠️ ${message}`;
+        errorDiv.style.display = 'block';
+    }
+    
+    /**
+     * Show success message
+     */
+    function showSuccess(message) {
+        const successDiv = document.getElementById('success-message');
+        successDiv.textContent = `✅ ${message}`;
+        successDiv.style.display = 'block';
+    }
+    
+    // ========== PAGE INITIALIZATION ==========
+    
+    document.addEventListener('DOMContentLoaded', () => {
         console.log('🚀 Payment Gateway Selector Initialized');
         console.log('Backend URL:', BACKEND_BASE_URL);
+        console.log('API Base URL:', API_BASE_URL);
         
         // Check if order_id is in URL (coming back from payment page)
         const urlParams = new URLSearchParams(window.location.search);
         const orderIdFromUrl = urlParams.get('order_id');
         
         if (orderIdFromUrl) {
+            console.log('📋 Found order ID in URL:', orderIdFromUrl);
             document.getElementById('order-id-input').value = orderIdFromUrl;
             loadOrderById(parseInt(orderIdFromUrl));
         }
         
         // Setup load button click handler
-        document.getElementById('load-order-btn').addEventListener('click', () => {
-            const orderIdInput = document.getElementById('order-id-input');
-            const orderId = parseInt(orderIdInput.value);
+        const loadBtn = document.getElementById('load-order-btn');
+        const orderInput = document.getElementById('order-id-input');
+        
+        loadBtn.addEventListener('click', () => {
+            const orderId = parseInt(orderInput.value);
             
             if (!orderId || orderId <= 0) {
-                const errorDiv = document.getElementById('error-message');
-                errorDiv.textContent = 'Please enter a valid order ID';
-                errorDiv.style.display = 'block';
+                showError('Please enter a valid order ID (must be a number greater than 0)');
                 return;
             }
             
@@ -256,283 +470,20 @@
         });
         
         // Allow Enter key to load order
-        document.getElementById('order-id-input').addEventListener('keypress', (e) => {
+        orderInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                document.getElementById('load-order-btn').click();
+                loadBtn.click();
+            }
+        });
+        
+        // Clear error message when user starts typing
+        orderInput.addEventListener('input', () => {
+            const errorDiv = document.getElementById('error-message');
+            if (errorDiv.style.display === 'block') {
+                errorDiv.style.display = 'none';
             }
         });
     });
-</script>
-
-</body>
-</html>
-    // =================================================
-
-    // State Variables
-    let stripe, elements, paymentElement;
-    let currentOrder = null;
-    let currentTipPercent = 15;
-    let customTip = 0;
-    let currentClientSecret = null;
-    let updateTimer = null; // For debouncing tip updates
-
-    // Initialize App
-    document.addEventListener('DOMContentLoaded', async () => {
-        console.log(`🚀 Starting App. Connecting to: ${BACKEND_BASE_URL}`);
-        
-        try {
-            stripe = Stripe(STRIPE_KEY);
-            
-            // Step 1: Load the Order
-            await loadOrder();
-
-            // Step 2: Initialize Stripe Payment Element (Requires fetching Intent first)
-            await initializePaymentElement();
-
-        } catch (error) {
-            showError(`Initialization Failed: ${error.message}`);
-        }
-    });
-
-    // --- FUNCTION: Load Order ---
-    async function loadOrder() {
-        try {
-            // Use public endpoint that doesn't require authentication
-            const res = await fetch(`${BACKEND_BASE_URL}/api/payments/public/order/${ORDER_ID}`);
-            if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.detail || `Order API returned ${res.status}`);
-            }
-            
-            currentOrder = await res.json();
-            console.log("✅ Order Loaded:", currentOrder);
-            
-            renderOrderDetails();
-            updateTotals();
-
-            // Reveal UI
-            document.getElementById('tip-section').style.display = 'block';
-            document.getElementById('payment-section').style.display = 'block';
-
-        } catch (err) {
-            console.error(err);
-            throw new Error(`Could not load order. Check console.`);
-        }
-    }
-
-    // --- FUNCTION: Initialize Payment Element ---
-    async function initializePaymentElement() {
-        try {
-            // We must create the PaymentIntent BEFORE mounting the element
-            // because the Element needs the 'clientSecret' to know what methods to show.
-            const clientSecret = await createOrUpdatePaymentIntent();
-            
-            const appearance = { theme: 'stripe' };
-            elements = stripe.elements({ appearance, clientSecret });
-            
-            paymentElement = elements.create('payment', {
-                layout: 'tabs' // Displays 'Apple Pay' and 'Card' as tabs if available
-            });
-            
-            paymentElement.mount('#payment-element');
-            
-            // Attach submit listener
-            document.getElementById('payment-form').addEventListener('submit', handleSubmit);
-
-        } catch (error) {
-            showError("Failed to load payment form: " + error.message);
-        }
-    }
-
-    // --- FUNCTION: Create or Update Payment Intent ---
-    // This calls your backend to get a clientSecret for the current total amount
-    async function createOrUpdatePaymentIntent() {
-        const subtotal = currentOrder.total_price;
-        const tipAmount = (customTip > 0) ? customTip : (subtotal * currentTipPercent / 100);
-        
-        console.log(`Creating/Updating Intent for Tip: $${tipAmount}`);
-
-        const res = await fetch(`${BACKEND_BASE_URL}/api/payments/intents`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                order_id: parseInt(ORDER_ID),
-                currency: 'USD',
-                tip_amount: tipAmount
-            })
-        });
-
-        if (!res.ok) {
-            const txt = await res.text();
-            throw new Error(`Backend Error: ${txt}`);
-        }
-
-        const data = await res.json();
-        currentClientSecret = data.client_secret;
-        return data.client_secret;
-    }
-
-    // --- FUNCTION: Handle Payment Submission ---
-    async function handleSubmit(e) {
-        e.preventDefault();
-        
-        const btn = document.getElementById('pay-button');
-        btn.disabled = true;
-        btn.textContent = "Processing...";
-        document.getElementById('error-container').style.display = 'none';
-
-        if (!stripe || !elements) return;
-
-        // Stripe confirms the payment using the element's data
-        const { error, paymentIntent } = await stripe.confirmPayment({
-            elements,
-            confirmParams: {
-                // Return URL is required, but we can handle without redirect if we prefer:
-                // If you want to avoid redirect, use redirect: 'if_required'
-                return_url: window.location.href + '?status=success',
-            },
-            redirect: 'if_required' 
-        });
-
-        if (error) {
-            console.error("Payment Error:", error);
-            showError(error.message);
-            btn.disabled = false;
-            btn.textContent = "Pay Now";
-        } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-            console.log("✅ Payment Succeeded:", paymentIntent);
-            
-            // Record in backend (Optional if your webhook handles it, but good for UI)
-            await recordSuccess(paymentIntent);
-            showSuccess(paymentIntent.amount / 100, paymentIntent.id);
-        }
-    }
-
-    // --- FUNCTION: Record Success ---
-    async function recordSuccess(paymentIntent) {
-        try {
-            const tipAmount = (paymentIntent.amount / 100) - currentOrder.total_price;
-            console.log(`Recording payment to backend: amount=${paymentIntent.amount / 100}, tip=${tipAmount}`);
-            
-            // Call the local Node.js payment route which forwards to the main backend API
-            const response = await fetch(`/api/payment`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    order_id: parseInt(ORDER_ID),
-                    payment_method: 'card', // Or 'apple_pay' if you can detect it
-                    amount: currentOrder.total_price,
-                    tip_amount: tipAmount,
-                    currency: 'USD',
-                    stripe_payment_intent_id: paymentIntent.id,
-                    stripe_charge_id: paymentIntent.latest_charge
-                })
-            });
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error("❌ Backend error:", response.status, errorText);
-                return;
-            }
-            
-            const result = await response.json();
-            console.log("✅ Payment recorded in backend:", result);
-        } catch (err) {
-            console.error("❌ Backend recording failed:", err);
-        }
-    }
-
-    // --- HELPER: Tip Logic with Debounce ---
-    // When tip changes, we must update the PaymentIntent on the server 
-    // so Stripe knows the new total amount before the user pays.
-    async function handleTipChange() {
-        updateTotals();
-        
-        const btn = document.getElementById('pay-button');
-        btn.disabled = true;
-        btn.textContent = "Updating Total...";
-
-        // Debounce: Wait 500ms after user stops clicking/typing
-        clearTimeout(updateTimer);
-        updateTimer = setTimeout(async () => {
-            try {
-                // Fetch new secret for new amount
-                const newClientSecret = await createOrUpdatePaymentIntent();
-                
-                // Tell Stripe Elements to use the new secret
-                // This updates the internal amount without reloading the UI
-                elements.fetchUpdates(); 
-                
-                btn.disabled = false;
-                btn.textContent = "Pay Now";
-            } catch (error) {
-                console.error("Failed to update tip:", error);
-                showError("Could not update tip amount. Please refresh.");
-            }
-        }, 500);
-    }
-
-    window.setTip = function(percent) {
-        currentTipPercent = percent;
-        customTip = 0;
-        document.getElementById('custom-tip').value = '';
-        
-        document.querySelectorAll('.tip-btn').forEach(btn => {
-            if(btn.textContent.includes(percent + '%') || (percent===0 && btn.textContent==='No')) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
-        handleTipChange();
-    }
-
-    window.setCustomTip = function(val) {
-        customTip = parseFloat(val) || 0;
-        document.querySelectorAll('.tip-btn').forEach(b => b.classList.remove('active'));
-        handleTipChange();
-    }
-
-    // --- HELPER: UI Logic ---
-    function renderOrderDetails() {
-        const container = document.getElementById('order-items-container');
-        if (!currentOrder.items || currentOrder.items.length === 0) {
-            container.innerHTML = '<p>No items in order.</p>';
-            return;
-        }
-        let html = '';
-        currentOrder.items.forEach(item => {
-            html += `
-            <div class="order-item">
-                <span>${item.product_id} <span style="color:#8898aa">x${item.quantity}</span></span>
-                <span>$${item.price.toFixed(2)}</span>
-            </div>`;
-        });
-        container.innerHTML = html;
-        document.getElementById('totals-container').style.display = 'block';
-    }
-
-    function updateTotals() {
-        const subtotal = currentOrder.total_price;
-        const tip = (customTip > 0) ? customTip : (subtotal * currentTipPercent / 100);
-        const total = subtotal + tip;
-
-        document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
-        document.getElementById('tip-amount').textContent = `$${tip.toFixed(2)}`;
-        document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
-    }
-
-    function showError(msg) {
-        const el = document.getElementById('error-container');
-        el.style.display = 'block';
-        el.innerHTML = `<strong>Error:</strong> ${msg}`;
-    }
-
-    function showSuccess(amount, id) {
-        document.getElementById('checkout-view').style.display = 'none';
-        document.getElementById('success-view').style.display = 'block';
-        document.getElementById('receipt-info').innerHTML = `Amount Paid: $${amount.toFixed(2)}<br>Trans ID: ${id}`;
-    }
 </script>
 
 </body>
