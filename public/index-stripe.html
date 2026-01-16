@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taken Cafe - Payment (Stripe)</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        .payment-status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+        .payment-status.processing {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffc107;
+        }
+        .payment-status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #28a745;
+        }
+        .payment-status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #dc3545;
+        }
+        #payment-element {
+            margin-bottom: 20px;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #5469d4;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>☕ Taken Cafe</h1>
+        <p class="subtitle">Secure Checkout - Stripe Payment</p>
+    </header>
+
+    <!-- Payment Status Message -->
+    <div id="payment-status" class="payment-status"></div>
+
+    <!-- Error Section -->
+    <div id="error-section" style="display: none;">
+        <div class="error-message">
+            <strong>⚠️ Payment Error</strong>
+            <p id="error-message"></p>
+            <button onclick="location.reload()" class="pay-button" style="margin-top: 10px;">Try Again</button>
+        </div>
+    </div>
+
+    <!-- Success Section -->
+    <div id="success-section" class="success-message" style="display: none;">
+        <div class="success-icon">🎉</div>
+        <h2>Payment Successful!</h2>
+        <p>Thank you for your order.</p>
+        <p id="receipt-info" style="font-size: 14px; color: #666; margin-top: 10px;"></p>
+        <button class="pay-button" onclick="window.location.href='index.html'" style="margin-top: 20px;">New Order</button>
+    </div>
+
+    <!-- Main Checkout View -->
+    <div id="checkout-view">
+        <!-- Order Details -->
+        <section class="order-summary">
+            <h3 style="margin-top: 0;">Order Summary</h3>
+            <div id="order-details">
+                <div class="loading-spinner">Loading order details...</div>
+            </div>
+        </section>
+
+        <!-- Order Totals -->
+        <section id="order-total-section" style="display: none;">
+            <div class="order-summary">
+                <div class="total-row"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
+                <div class="total-row"><span>Tip</span><span id="tip-amount">$0.00</span></div>
+                <div class="total-row final"><span>Total</span><span id="total-amount">$0.00</span></div>
+            </div>
+        </section>
+
+        <!-- Tip Selection -->
+        <section id="tip-section" style="display: none;">
+            <h3>Add a Tip</h3>
+            <div class="tip-buttons">
+                <button class="tip-btn" data-percent="0" onclick="setTip(0)">No Tip</button>
+                <button class="tip-btn active" data-percent="15" onclick="setTip(15)">15%</button>
+                <button class="tip-btn" data-percent="20" onclick="setTip(20)">20%</button>
+                <button class="tip-btn" data-percent="25" onclick="setTip(25)">25%</button>
+            </div>
+            <input type="number" id="custom-tip" placeholder="Custom tip amount ($)" 
+                   step="0.01" min="0" oninput="setCustomTip(this.value)">
+        </section>
+
+        <!-- Payment Form -->
+        <section id="payment-section" style="display: none;">
+            <h3>Payment Details</h3>
+            <form id="payment-form">
+                <div id="payment-element">
+                    <!-- Stripe Payment Element will be mounted here -->
+                </div>
+                <button id="pay-button" class="pay-button" type="submit">
+                    Pay Now
+                </button>
+                <div id="error-container" class="error-message" style="margin-top: 15px; display: none;"></div>
+            </form>
+        </section>
+    </div>
+</div>
+
+<script>
+    // Configuration - Use live backend
+    const urlParams = new URLSearchParams(window.location.search);
+    const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'https://livekit-mobile.linkedinwriter.io';
+    const ORDER_ID = urlParams.get('order_id') || null;
+    const STRIPE_KEY = 'pk_test_51SIqA4Ki3uNg2emjxfkokQEF9VXyUZjAAWo37jbWj9CMi0AhBJprVco0ZK3dIqeDBsvfHY1Ftz8SY1HV9o6xQONH0097lDkUkC';
+    
+    // Redirect to order input if no order ID
+    if (!ORDER_ID) {
+        console.warn('⚠️ No order ID provided, redirecting to order input...');
+        window.location.href = 'index.html';
+    }
+
+    // State Variables
+    let stripe, elements, paymentElement;
+    let currentOrder = null;
+    let currentTipPercent = 15;
+    let customTip = 0;
+    let currentClientSecret = null;
+    let updateTimer = null;
+
+    // Initialize App
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log(`🚀 Starting Stripe Payment. Connecting to: ${BACKEND_BASE_URL}`);
+        
+        try {
+            stripe = Stripe(STRIPE_KEY);
+            
+            // Step 1: Load the Order
+            await loadOrder();
+
+            // Step 2: Initialize Stripe Payment Element
+            await initializePaymentElement();
+
+        } catch (error) {
+            showError(`Initialization Failed: ${error.message}`);
+        }
+    });
+
+    // --- FUNCTION: Load Order ---
+    async function loadOrder() {
+        try {
+            console.log(`🔍 Fetching order ${ORDER_ID} from ${BACKEND_BASE_URL}/api/orders/${ORDER_ID}`);
+            
+            const res = await fetch(`${BACKEND_BASE_URL}/api/orders/${ORDER_ID}`);
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.detail || `Order API returned ${res.status}`);
+            }
+            
+            currentOrder = await res.json();
+            console.log("✅ Order Loaded:", currentOrder);
+            
+            renderOrderDetails();
+            updateTotals();
+
+            // Reveal UI
+            document.getElementById('tip-section').style.display = 'block';
+            document.getElementById('payment-section').style.display = 'block';
+
+        } catch (err) {
+            console.error(err);
+            throw new Error(`Could not load order. Check console.`);
+        }
+    }
+
+    // --- FUNCTION: Initialize Payment Element ---
+    async function initializePaymentElement() {
+        try {
+            const clientSecret = await createOrUpdatePaymentIntent();
+            
+            const appearance = { theme: 'stripe' };
+            elements = stripe.elements({ appearance, clientSecret });
+            
+            paymentElement = elements.create('payment', {
+                layout: 'tabs'
+            });
+            
+            paymentElement.mount('#payment-element');
+            
+            // Attach submit listener
+            document.getElementById('payment-form').addEventListener('submit', handleSubmit);
+
+        } catch (error) {
+            showError("Failed to load payment form: " + error.message);
+        }
+    }
+
+    // --- FUNCTION: Create or Update Payment Intent ---
+    async function createOrUpdatePaymentIntent() {
+        const subtotal = currentOrder.total_price;
+        const tipAmount = (customTip > 0) ? customTip : (subtotal * currentTipPercent / 100);
+        
+        console.log(`Creating/Updating Intent for Tip: $${tipAmount}`);
+
+        const res = await fetch(`${BACKEND_BASE_URL}/api/payments/intents`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                order_id: parseInt(ORDER_ID),
+                currency: 'USD',
+                tip_amount: tipAmount
+            })
+        });
+
+        if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(`Backend Error: ${txt}`);
+        }
+
+        const data = await res.json();
+        currentClientSecret = data.client_secret;
+        return data.client_secret;
+    }
+
+    // --- FUNCTION: Handle Payment Submission ---
+    async function handleSubmit(e) {
+        e.preventDefault();
+        
+        const btn = document.getElementById('pay-button');
+        btn.disabled = true;
+        btn.textContent = "Processing...";
+        document.getElementById('error-container').style.display = 'none';
+
+        if (!stripe || !elements) return;
+
+        const { error, paymentIntent } = await stripe.confirmPayment({
+            elements,
+            confirmParams: {
+                return_url: window.location.href + '?status=success',
+            },
+            redirect: 'if_required' 
+        });
+
+        if (error) {
+            console.error("Payment Error:", error);
+            showError(error.message);
+            btn.disabled = false;
+            btn.textContent = "Pay Now";
+        } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+            console.log("✅ Payment Succeeded:", paymentIntent);
+            
+            await recordSuccess(paymentIntent);
+            showSuccess(paymentIntent.amount / 100, paymentIntent.id);
+        }
+    }
+
+    // --- FUNCTION: Record Success ---
+    async function recordSuccess(paymentIntent) {
+        try {
+            const tipAmount = (paymentIntent.amount / 100) - currentOrder.total_price;
+            console.log(`Recording payment to backend: amount=${paymentIntent.amount / 100}, tip=${tipAmount}`);
+            
+            const response = await fetch(`${BACKEND_BASE_URL}/api/payments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    order_id: parseInt(ORDER_ID),
+                    payment_method: 'card',
+                    amount: currentOrder.total_price,
+                    tip_amount: tipAmount,
+                    currency: 'USD',
+                    stripe_payment_intent_id: paymentIntent.id,
+                    stripe_charge_id: paymentIntent.latest_charge
+                })
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("❌ Backend error:", response.status, errorText);
+                return;
+            }
+            
+            const result = await response.json();
+            console.log("✅ Payment recorded in backend:", result);
+        } catch (err) {
+            console.error("❌ Backend recording failed:", err);
+        }
+    }
+
+    // --- HELPER: Tip Logic with Debounce ---
+    async function handleTipChange() {
+        updateTotals();
+        
+        const btn = document.getElementById('pay-button');
+        btn.disabled = true;
+        btn.textContent = "Updating Total...";
+
+        clearTimeout(updateTimer);
+        updateTimer = setTimeout(async () => {
+            try {
+                const newClientSecret = await createOrUpdatePaymentIntent();
+                elements.fetchUpdates(); 
+                
+                btn.disabled = false;
+                btn.textContent = "Pay Now";
+            } catch (error) {
+                console.error("Failed to update tip:", error);
+                showError("Could not update tip amount. Please refresh.");
+            }
+        }, 500);
+    }
+
+    window.setTip = function(percent) {
+        currentTipPercent = percent;
+        customTip = 0;
+        document.getElementById('custom-tip').value = '';
+        
+        document.querySelectorAll('.tip-btn').forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.dataset.percent) === percent);
+        });
+        handleTipChange();
+    }
+
+    window.setCustomTip = function(val) {
+        customTip = parseFloat(val) || 0;
+        document.querySelectorAll('.tip-btn').forEach(b => b.classList.remove('active'));
+        handleTipChange();
+    }
+
+    // --- HELPER: UI Logic ---
+    function renderOrderDetails() {
+        const container = document.getElementById('order-details');
+        if (!currentOrder.items || currentOrder.items.length === 0) {
+            container.innerHTML = '<p>No items in order.</p>';
+            return;
+        }
+        let html = '';
+        currentOrder.items.forEach(item => {
+            html += `
+            <div class="order-item">
+                <span>${item.product_id} <span style="color:#8898aa">x${item.quantity}</span></span>
+                <span>$${item.price.toFixed(2)}</span>
+            </div>`;
+        });
+        container.innerHTML = html;
+        document.getElementById('order-total-section').style.display = 'block';
+    }
+
+    function updateTotals() {
+        const subtotal = currentOrder.total_price;
+        const tip = (customTip > 0) ? customTip : (subtotal * currentTipPercent / 100);
+        const total = subtotal + tip;
+
+        document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+        document.getElementById('tip-amount').textContent = `$${tip.toFixed(2)}`;
+        document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('error-container');
+        el.style.display = 'block';
+        el.innerHTML = `<strong>Error:</strong> ${msg}`;
+    }
+
+    function showSuccess(amount, id) {
+        document.getElementById('checkout-view').style.display = 'none';
+        document.getElementById('success-view').style.display = 'block';
+        document.getElementById('receipt-info').innerHTML = `Amount Paid: $${amount.toFixed(2)}<br>Trans ID: ${id}`;
+    }
+</script>
+
+</body>
+</html>

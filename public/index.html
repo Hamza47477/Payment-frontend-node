@@ -12,8 +12,46 @@
         h1 { margin: 0; font-size: 24px; color: #1a1f36; }
         .subtitle { color: #697386; margin-top: 5px; font-size: 14px; }
         
+        /* Order Input Section */
+        .order-input-section {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .order-input-section input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #e6ebf1;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+        .order-input-section input:focus {
+            outline: none;
+            border-color: #5469d4;
+        }
+        .btn-primary {
+            background: #5469d4;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.3s;
+        }
+        .btn-primary:hover {
+            background: #4053b8;
+        }
+        .btn-primary:disabled {
+            background: #9ca9df;
+            cursor: not-allowed;
+        }
+        
         /* Gateway Selection */
-        .gateway-selector { margin-bottom: 30px; text-align: center; }
+        .gateway-selector { margin-bottom: 30px; text-align: center; display: none; }
         .gateway-btn { 
             padding: 12px 24px; 
             margin: 0 10px; 
@@ -41,7 +79,7 @@
             color: #697386;
         }
         
-        #loading { text-align: center; padding: 40px; }
+        #loading { text-align: center; padding: 40px; display: none; }
         .spinner { 
             border: 4px solid #f3f3f3;
             border-top: 4px solid #5469d4;
@@ -55,6 +93,14 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -65,8 +111,16 @@
         <p class="subtitle">Secure Checkout</p>
     </header>
 
-    <!-- Gateway Selector -->
-    <section class="gateway-selector">
+    <!-- Order ID Input Section (First Step) -->
+    <section id="order-input-section" class="order-input-section">
+        <h2 style="font-size: 18px; margin-bottom: 20px;">Enter Your Order ID</h2>
+        <input type="number" id="order-id-input" placeholder="Order ID" min="1" />
+        <div id="error-message" class="error-message"></div>
+        <button id="load-order-btn" class="btn-primary">Load Order</button>
+    </section>
+
+    <!-- Gateway Selector (Second Step) -->
+    <section class="gateway-selector" id="gateway-selector">
         <div>
             <button id="gateway-ngenius" class="gateway-btn active" onclick="selectGateway('ngenius')">
                 🏦 N-Genius (Default)
@@ -80,18 +134,74 @@
         </div>
     </section>
 
+    <!-- Loading Indicator -->
     <div id="loading">
         <div class="spinner"></div>
-        <p>Loading payment page...</p>
+        <p id="loading-text">Loading payment page...</p>
     </div>
 </div>
 
 <script>
-    // Configuration
-    const urlParams = new URLSearchParams(window.location.search);
-    const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'http://localhost:8005';
-    const ORDER_ID = urlParams.get('order_id') || '8';
-    const DEFAULT_GATEWAY = urlParams.get('gateway') || 'ngenius';  // 'ngenius' or 'stripe'
+    // Configuration - Use live server
+    const BACKEND_BASE_URL = 'https://livekit-mobile.linkedinwriter.io';
+    const DEFAULT_GATEWAY = 'ngenius';  // 'ngenius' or 'stripe'
+    
+    let currentOrder = null;
+    let ORDER_ID = null;
+    
+    let currentOrder = null;
+    let ORDER_ID = null;
+    
+    // Load order from backend by ID
+    async function loadOrderById(orderId) {
+        const loadingSection = document.getElementById('loading');
+        const errorDiv = document.getElementById('error-message');
+        const loadBtn = document.getElementById('load-order-btn');
+        
+        try {
+            loadBtn.disabled = true;
+            loadBtn.textContent = 'Loading...';
+            loadingSection.style.display = 'block';
+            errorDiv.style.display = 'none';
+            
+            console.log(`🔍 Fetching order ${orderId} from ${BACKEND_BASE_URL}/api/orders/${orderId}`);
+            
+            const response = await fetch(`${BACKEND_BASE_URL}/api/orders/${orderId}`);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error(`Order #${orderId} not found. Please check your order ID.`);
+                } else if (response.status === 403) {
+                    throw new Error('Access denied to this order.');
+                } else {
+                    throw new Error(`Failed to load order: ${response.statusText}`);
+                }
+            }
+            
+            currentOrder = await response.json();
+            ORDER_ID = orderId;
+            
+            console.log('✅ Order loaded:', currentOrder);
+            
+            // Show gateway selector
+            document.getElementById('order-input-section').style.display = 'none';
+            document.getElementById('gateway-selector').style.display = 'block';
+            loadingSection.style.display = 'none';
+            
+            // Auto-redirect to payment page after 1.5 seconds
+            setTimeout(() => {
+                selectGateway(DEFAULT_GATEWAY);
+            }, 1500);
+            
+        } catch (error) {
+            console.error('❌ Error loading order:', error);
+            errorDiv.textContent = error.message;
+            errorDiv.style.display = 'block';
+            loadBtn.disabled = false;
+            loadBtn.textContent = 'Load Order';
+            loadingSection.style.display = 'none';
+        }
+    }
     
     function selectGateway(gateway) {
         console.log('🏦 Selected gateway:', gateway);
@@ -108,10 +218,7 @@
             infoText.textContent = 'Using Stripe for international payments';
         }
         
-        // Redirect to appropriate payment page
-        const newUrl = new URL(window.location.href);
-        newUrl.searchParams.set('gateway', gateway);
-        
+        // Redirect to appropriate payment page with order ID
         if (gateway === 'ngenius') {
             window.location.href = `index-ngenius.html?order_id=${ORDER_ID}&backend_base_url=${encodeURIComponent(BACKEND_BASE_URL)}`;
         } else {
@@ -119,17 +226,41 @@
         }
     }
     
-    // Auto-redirect based on default gateway
+    // Initialize app on page load
     window.addEventListener('DOMContentLoaded', () => {
-        console.log('🚀 Payment Gateway Selector');
+        console.log('🚀 Payment Gateway Selector Initialized');
         console.log('Backend URL:', BACKEND_BASE_URL);
-        console.log('Order ID:', ORDER_ID);
-        console.log('Default Gateway:', DEFAULT_GATEWAY);
         
-        // Auto-select default gateway after 2 seconds
-        setTimeout(() => {
-            selectGateway(DEFAULT_GATEWAY);
-        }, 2000);
+        // Check if order_id is in URL (coming back from payment page)
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderIdFromUrl = urlParams.get('order_id');
+        
+        if (orderIdFromUrl) {
+            document.getElementById('order-id-input').value = orderIdFromUrl;
+            loadOrderById(parseInt(orderIdFromUrl));
+        }
+        
+        // Setup load button click handler
+        document.getElementById('load-order-btn').addEventListener('click', () => {
+            const orderIdInput = document.getElementById('order-id-input');
+            const orderId = parseInt(orderIdInput.value);
+            
+            if (!orderId || orderId <= 0) {
+                const errorDiv = document.getElementById('error-message');
+                errorDiv.textContent = 'Please enter a valid order ID';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            loadOrderById(orderId);
+        });
+        
+        // Allow Enter key to load order
+        document.getElementById('order-id-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('load-order-btn').click();
+            }
+        });
     });
 </script>
 

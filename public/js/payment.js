@@ -1,8 +1,8 @@
-// Prefer same-origin API via the Node server.
+// Use live backend API via the Node server proxy
 const API_BASE_URL = typeof window.API_BASE_URL === 'string' ? window.API_BASE_URL : '/api/payment';
 
-// Initialize Stripe
-const stripe = Stripe('pk_test_YOUR_PUBLISHABLE_KEY_HERE'); // Replace with your actual key variable if defined globally
+// Initialize Stripe with live publishable key
+const stripe = Stripe('pk_test_51SIqA4Ki3uNg2emjxfkokQEF9VXyUZjAAWo37jbWj9CMi0AhBJprVco0ZK3dIqeDBsvfHY1Ftz8SY1HV9o6xQONH0097lDkUkC');
 let elements;
 let paymentElement;
 let currentOrder = null;

@@ -149,12 +149,18 @@
 
 <script src="js/ngenius-payment.js"></script>
 <script>
-    // Configuration
+    // Configuration - Use live backend URL
     const urlParams = new URLSearchParams(window.location.search);
-    const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'http://localhost:8005';
-    const ORDER_ID = urlParams.get('order_id') || '8';
+    const BACKEND_BASE_URL = urlParams.get('backend_base_url') || 'https://livekit-mobile.linkedinwriter.io';
+    const ORDER_ID = urlParams.get('order_id') || null;
     
-    // Initialize N-Genius payment handler
+    // Redirect to order input if no order ID
+    if (!ORDER_ID) {
+        console.warn('⚠️ No order ID provided, redirecting to order input...');
+        window.location.href = 'index.html';
+    }
+    
+    // Initialize N-Genius payment handler with live backend
     const ngeniusHandler = new NGeniusPaymentHandler(`${BACKEND_BASE_URL}/api/payments`);
     
     document.addEventListener('DOMContentLoaded', async () => {
