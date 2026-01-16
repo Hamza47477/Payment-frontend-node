@@ -285,14 +285,12 @@
     // ========== STATE VARIABLES ==========
     let currentOrder = null;
     let ORDER_ID = null;
-    let currentOrder = null;
-    let ORDER_ID = null;
     
     // ========== MAIN FUNCTIONS ==========
     
     /**
      * Load order details from backend API
-     * Fetches order from /api/orders/{orderId} endpoint
+     * Fetches order from GET /api/orders/{order_id} endpoint
      */
     async function loadOrderById(orderId) {
         const loadingSection = document.getElementById('loading');
@@ -306,10 +304,20 @@
             loadingSection.style.display = 'block';
             errorDiv.style.display = 'none';
             
-            console.log(`🔍 Fetching order ${orderId} from ${API_BASE_URL}/orders/${orderId}`);
+            // Construct the correct endpoint
+            const endpoint = `${API_BASE_URL}/orders/${orderId}`;
+            console.log(`🔍 API Request: GET ${endpoint}`);
+            console.log(`📍 Full URL: ${endpoint}`);
             
-            // Fetch order from backend
-            const response = await fetch(`${API_BASE_URL}/orders/${orderId}`);
+            // Fetch order from backend using GET /api/orders/{order_id}
+            const response = await fetch(endpoint, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            console.log(`📊 Response Status: ${response.status}`);
             
             if (!response.ok) {
                 let errorMsg = `Failed to load order`;
