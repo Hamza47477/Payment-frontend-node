@@ -92,6 +92,58 @@
             cursor: not-allowed;
         }
         
+        /* Login Section */
+        .login-section {
+            text-align: center;
+            padding: 20px 0;
+        }
+        
+        .login-section h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #1a1f36;
+        }
+        
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .login-form input {
+            padding: 12px;
+            font-size: 14px;
+            border: 2px solid #e6ebf1;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        
+        .login-form input:focus {
+            outline: none;
+            border-color: #5469d4;
+            box-shadow: 0 0 0 3px rgba(84, 105, 212, 0.1);
+        }
+        
+        .login-info {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            color: #0066cc;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+        
+        .auth-status {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
         /* Gateway Selection */
         .gateway-selector { 
             margin-bottom: 30px; 
@@ -230,8 +282,32 @@
     <!-- Success Message Display -->
     <div id="success-message" class="success-message"></div>
 
-    <!-- Order ID Input Section (First Step) -->
-    <section id="order-input-section" class="order-input-section">
+    <!-- Authentication Section (First Step) -->
+    <section id="login-section" class="login-section">
+        <h2>🔐 Backend Authentication</h2>
+        <div class="login-info">
+            💡 Provide your backend credentials to access the order API
+        </div>
+        <div id="auth-status" class="auth-status"></div>
+        <div class="login-form">
+            <input 
+                type="text" 
+                id="username-input" 
+                placeholder="Username" 
+                autocomplete="off"
+            />
+            <input 
+                type="password" 
+                id="password-input" 
+                placeholder="Password" 
+                autocomplete="off"
+            />
+            <button id="login-btn" class="btn-primary">Login</button>
+        </div>
+    </section>
+
+    <!-- Order ID Input Section (Second Step) -->
+    <section id="order-input-section" class="order-input-section" style="display: none;">
         <h2>Enter Your Order ID</h2>
         <input 
             type="number" 
@@ -285,8 +361,80 @@
     // ========== STATE VARIABLES ==========
     let currentOrder = null;
     let ORDER_ID = null;
+    let authToken = null;
+    let isAuthenticated = false;
     
     // ========== MAIN FUNCTIONS ==========
+    
+    /**
+     * Authenticate with backend using username and password
+     * Sets authToken for subsequent API calls
+     */
+    async function authenticateUser(username, password) {
+        const loginBtn = document.getElementById('login-btn');
+        const authStatus = document.getElementById('auth-status');
+        const usernameInput = document.getElementById('username-input');
+        const passwordInput = document.getElementById('password-input');
+        
+        try {
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Authenticating...';
+            authStatus.style.display = 'none';
+            
+            console.log(`🔐 Authenticating user: ${username}`);
+            
+            // Create Basic Auth header
+            const credentials = btoa(`${username}:${password}`);
+            const authHeader = `Basic ${credentials}`;
+            
+            console.log(`📝 Auth Header: Basic ${username}:****`);
+            
+            // Test the connection with a simple auth test
+            // Most APIs will validate credentials on first request
+            const testResponse = await fetch(`${API_BASE_URL}/orders/1`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': authHeader,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            console.log(`📊 Auth Response Status: ${testResponse.status}`);
+            
+            if (testResponse.status === 401 || testResponse.status === 403) {
+                throw new Error('Invalid username or password. Please try again.');
+            }
+            
+            // Store credentials
+            authToken = authHeader;
+            isAuthenticated = true;
+            
+            console.log('✅ Authentication successful!');
+            
+            // Show success message
+            authStatus.textContent = `✅ Logged in as: ${username}`;
+            authStatus.style.display = 'block';
+            authStatus.style.background = '#d4edda';
+            authStatus.style.color = '#155724';
+            
+            // Hide login section, show order input section
+            setTimeout(() => {
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('order-input-section').style.display = 'block';
+                usernameInput.value = '';
+                passwordInput.value = '';
+            }, 1000);
+            
+        } catch (error) {
+            console.error('❌ Authentication error:', error);
+            authStatus.textContent = `⚠️ ${error.message}`;
+            authStatus.style.display = 'block';
+            authStatus.style.background = '#f8d7da';
+            authStatus.style.color = '#721c24';
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Login';
+        }
+    }
     
     /**
      * Load order details from backend API
@@ -313,7 +461,8 @@
             const response = await fetch(endpoint, {
                 method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': authToken // Include auth header
                 }
             });
             
@@ -448,25 +597,48 @@
     // ========== PAGE INITIALIZATION ==========
     
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('🚀 Payment Gateway Selector Initialized');
+        console.log('🚀 Payment Frontend Initialized');
         console.log('Backend URL:', BACKEND_BASE_URL);
         console.log('API Base URL:', API_BASE_URL);
         
-        // Check if order_id is in URL (coming back from payment page)
-        const urlParams = new URLSearchParams(window.location.search);
-        const orderIdFromUrl = urlParams.get('order_id');
+        // Setup login button
+        const loginBtn = document.getElementById('login-btn');
+        const usernameInput = document.getElementById('username-input');
+        const passwordInput = document.getElementById('password-input');
         
-        if (orderIdFromUrl) {
-            console.log('📋 Found order ID in URL:', orderIdFromUrl);
-            document.getElementById('order-id-input').value = orderIdFromUrl;
-            loadOrderById(parseInt(orderIdFromUrl));
-        }
+        loginBtn.addEventListener('click', () => {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+            
+            if (!username || !password) {
+                const authStatus = document.getElementById('auth-status');
+                authStatus.textContent = '⚠️ Please enter both username and password';
+                authStatus.style.display = 'block';
+                authStatus.style.background = '#fff3cd';
+                authStatus.style.color = '#856404';
+                return;
+            }
+            
+            authenticateUser(username, password);
+        });
+        
+        // Allow Enter key on password field to login
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                loginBtn.click();
+            }
+        });
         
         // Setup load button click handler
         const loadBtn = document.getElementById('load-order-btn');
         const orderInput = document.getElementById('order-id-input');
         
         loadBtn.addEventListener('click', () => {
+            if (!isAuthenticated) {
+                showError('Please login first');
+                return;
+            }
+            
             const orderId = parseInt(orderInput.value);
             
             if (!orderId || orderId <= 0) {
