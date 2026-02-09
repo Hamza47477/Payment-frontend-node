@@ -1,529 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taken Cafe - Payment - QClub</title>
-    <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #333; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px; 
-            margin: 0; 
-        }
-        
-        .container { 
-            background: white; 
-            width: 100%; 
-            max-width: 500px; 
-            padding: 40px; 
-            border-radius: 16px; 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
-        }
-        
-        header { 
-            text-align: center; 
-            margin-bottom: 35px; 
-        }
-        
-        h1 { 
-            margin: 0; 
-            font-size: 32px; 
-            color: #1a1f36; 
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        
-        .subtitle { 
-            color: #697386; 
-            margin-top: 8px; 
-            font-size: 14px; 
-        }
-        
-        /* Order ID Input Section */
-        .order-input-section {
-            margin-bottom: 25px;
-        }
-        
-        .order-input-section label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #1a1f36;
-            font-size: 14px;
-        }
-        
-        .order-input-section input {
-            width: 100%;
-            padding: 14px;
-            font-size: 16px;
-            border: 2px solid #e6ebf1;
-            border-radius: 10px;
-            box-sizing: border-box;
-            transition: border-color 0.3s;
-        }
-        
-        .order-input-section input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 14px 24px;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            transition: transform 0.2s, box-shadow 0.2s;
-            margin-bottom: 15px;
-        }
-        
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-        
-        .btn-primary:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        
-        /* Order Details Display */
-        .order-details-display {
-            background: #f8f9fc;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            display: none;
-            border: 2px solid #e6ebf1;
-        }
-        
-        .order-details-display h3 {
-            margin: 0 0 15px 0;
-            font-size: 18px;
-            color: #1a1f36;
-        }
-        
-        .order-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #e6ebf1;
-            font-size: 15px;
-        }
-        
-        .order-item:last-child {
-            border-bottom: none;
-        }
-        
-        .order-item-name {
-            font-weight: 500;
-            color: #1a1f36;
-        }
-        
-        .order-item-price {
-            color: #697386;
-        }
-        
-        .order-total {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 0;
-            font-weight: 700;
-            font-size: 18px;
-            color: #667eea;
-            margin-top: 15px;
-            border-top: 2px solid #e6ebf1;
-            padding-top: 15px;
-        }
-        
-        /* Payment Section */
-        .payment-section {
-            display: none;
-            background: #f0f4ff;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            border: 2px solid #e6ebf1;
-        }
-        
-        .payment-section h2 {
-            margin: 0 0 15px 0;
-            font-size: 18px;
-            color: #1a1f36;
-        }
-        
-        .payment-info {
-            background: white;
-            padding: 12px;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-            font-size: 14px;
-            color: #697386;
-            margin-bottom: 15px;
-        }
-        
-        .payment-info strong {
-            color: #1a1f36;
-        }
-        
-        #loading { 
-            text-align: center; 
-            padding: 40px; 
-            display: none; 
-        }
-        
-        .spinner { 
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .error-message {
-            background: #fee;
-            color: #c00;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            display: none;
-            border: 2px solid #fcc;
-            font-weight: 500;
-        }
-        
-        .success-message {
-            background: #efe;
-            color: #060;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            display: none;
-            border: 2px solid #cfc;
-            font-weight: 500;
-        }
-        
-        @media (max-width: 600px) {
-            .container {
-                padding: 25px;
-            }
-            
-            h1 {
-                font-size: 24px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>QClub Auto Payment</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { background: #181a20; color: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    #main { background: #23262f; padding: 32px 24px; border-radius: 12px; box-shadow: 0 4px 24px #0004; min-width: 320px; }
+    label, input, button { font-size: 1.1em; }
+    input { padding: 10px; border-radius: 6px; border: none; width: 100%; margin-bottom: 16px; }
+    button { background: #764ba2; color: #fff; border: none; border-radius: 6px; padding: 12px 0; width: 100%; font-weight: bold; cursor: pointer; }
+    #msg { margin-top: 18px; color: #ffb300; font-size: 1em; }
+  </style>
 </head>
 <body>
+  <div id="main">
+    <label for="orderId">Order ID</label>
+    <input id="orderId" type="number" min="1" placeholder="Enter order ID" autofocus />
+    <button id="payBtn">Pay Now</button>
+    <div id="msg"></div>
+  </div>
+  <script>
+    const API_BASE = 'https://livekit-mobile.linkedinwriter.io/api';
+    const payBtn = document.getElementById('payBtn');
+    const orderIdInput = document.getElementById('orderId');
+    const msg = document.getElementById('msg');
 
-<div class="container">
-    <header>
-        <h1>☕ Taken Cafe</h1>
-        <p class="subtitle">Quick & Secure QClub Payment</p>
-    </header>
+    async function autoPay(orderId) {
+      msg.textContent = 'Loading order...';
+      try {
+        // 1. Get order details (no auth)
+        const orderRes = await fetch(`${API_BASE}/orders/${orderId}`);
+        if (!orderRes.ok) throw new Error('Order not found');
+        const order = await orderRes.json();
 
-    <!-- Error Message Display -->
-    <div id="error-message" class="error-message"></div>
-    
-    <!-- Success Message Display -->
-    <div id="success-message" class="success-message"></div>
-
-    <!-- Step 1: Order ID Input -->
-    <section id="order-input-section" class="order-input-section">
-        <label for="order-id-input">📦 Enter Your Order ID</label>
-        <input 
-            type="number" 
-            id="order-id-input" 
-            placeholder="e.g., 1, 2, 3..." 
-            min="1"
-            autocomplete="off"
-        />
-        <button id="load-order-btn" class="btn-primary">
-            Load Order Details
-        </button>
-    </section>
-
-    <!-- Step 2: Order Details Preview -->
-    <div id="order-details-display" class="order-details-display">
-        <h3>✅ Order Summary</h3>
-        <div id="order-items-list"></div>
-        <div class="order-total">
-            <span>Total:</span>
-            <span id="order-total-amount">$0.00</span>
-        </div>
-    </div>
-
-    <!-- Step 3: Payment Confirmation -->
-    <section id="payment-section" class="payment-section">
-        <h2>💳 Complete Payment</h2>
-        <div class="payment-info">
-            <strong>Payment Method:</strong> QClub 3DS Payment Gateway
-        </div>
-        <button id="qclub-pay-btn" class="btn-primary">
-            Proceed to QClub Payment
-        </button>
-    </section>
-
-    <!-- Loading Indicator -->
-    <div id="loading">
-        <div class="spinner"></div>
-        <p id="loading-text">Processing your request...</p>
-    </div>
-</div>
-
-<script>
-    // ========== CONFIGURATION ==========
-    const BACKEND_BASE_URL = 'https://livekit-mobile.linkedinwriter.io';
-    const API_BASE_URL = `${BACKEND_BASE_URL}/api`;
-    
-    // ========== STATE VARIABLES ==========
-    let currentOrder = null;
-    let ORDER_ID = null;
-    
-    // ========== MAIN FUNCTIONS ==========
-    
-    /**
-     * Load order details from backend API
-     */
-    async function loadOrderById(orderId) {
-        const loadingSection = document.getElementById('loading');
-        const errorDiv = document.getElementById('error-message');
-        const loadBtn = document.getElementById('load-order-btn');
-        const orderDetailsDisplay = document.getElementById('order-details-display');
-        const paymentSection = document.getElementById('payment-section');
-        const orderInputSection = document.getElementById('order-input-section');
-        
-        try {
-            loadBtn.disabled = true;
-            loadBtn.textContent = 'Loading Order...';
-            loadingSection.style.display = 'block';
-            errorDiv.style.display = 'none';
-            
-            const endpoint = `${API_BASE_URL}/orders/${orderId}`;
-            console.log(`🔍 Fetching order: ${endpoint}`);
-            
-            const response = await fetch(endpoint, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            console.log(`📊 Response Status: ${response.status}`);
-            
-            if (!response.ok) {
-                let errorMsg = `Failed to load order`;
-                
-                if (response.status === 404) {
-                    errorMsg = `Order #${orderId} not found. Please check the order ID.`;
-                } else if (response.status === 500) {
-                    errorMsg = 'Server error. Please try again later.';
-                }
-                
-                throw new Error(errorMsg);
-            }
-            
-            currentOrder = await response.json();
-            ORDER_ID = orderId;
-            
-            console.log('✅ Order loaded:', currentOrder);
-            
-            // Display order details
-            displayOrderDetails(currentOrder);
-            
-            // Show next steps
-            orderInputSection.style.display = 'none';
-            orderDetailsDisplay.style.display = 'block';
-            paymentSection.style.display = 'block';
-            loadingSection.style.display = 'none';
-            
-        } catch (error) {
-            console.error('❌ Error:', error);
-            showError(error.message);
-            loadBtn.disabled = false;
-            loadBtn.textContent = 'Load Order Details';
-            loadingSection.style.display = 'none';
-        }
-    }
-    
-    /**
-     * Display order details on the page
-     */
-    function displayOrderDetails(order) {
-        const itemsList = document.getElementById('order-items-list');
-        const totalAmount = document.getElementById('order-total-amount');
-        
-        if (!order.items || order.items.length === 0) {
-            itemsList.innerHTML = '<p style="color: #999; font-size: 14px;">No items in this order</p>';
-            totalAmount.textContent = '0.00 IQD';
-            return;
-        }
-        
-        let html = '';
-        order.items.forEach(item => {
-            const itemTotal = (item.price * item.quantity).toFixed(2);
-            html += `
-                <div class="order-item">
-                    <span class="order-item-name">${item.product_id || item.name || 'Product'} <strong>×${item.quantity}</strong></span>
-                    <span class="order-item-price">${itemTotal} IQD</span>
-                </div>
-            `;
+        msg.textContent = 'Creating payment...';
+        // 2. Create QClub payment (no auth in frontend)
+        const payload = {
+          order_id: orderId,
+          amount: order.total_price,
+          currency: 'IQD',
+          tip_amount: 0,
+          metadata: {
+            return_url: window.location.href,
+            webhook_url: 'https://livekit-mobile.linkedinwriter.io/api/payments/qclub/webhook'
+          }
+        };
+        const payRes = await fetch(`${API_BASE}/payments/qclub/create-payment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
-        
-        itemsList.innerHTML = html;
-        totalAmount.textContent = `${order.total_price.toFixed(2)} IQD`;
-    }
-    
-    /**
-     * Create QClub payment session
-     */
-    async function createQClubPayment() {
-        const payBtn = document.getElementById('qclub-pay-btn');
-        const loadingSection = document.getElementById('loading');
-        const loadingText = document.getElementById('loading-text');
-        
-        try {
-            if (!ORDER_ID || !currentOrder) {
-                showError('Order information missing. Please load an order first.');
-                return;
-            }
-            
-            payBtn.disabled = true;
-            payBtn.textContent = 'Creating Payment...';
-            loadingSection.style.display = 'block';
-            loadingText.textContent = 'Creating secure payment session...';
-            
-            console.log('💳 Creating QClub payment for order:', ORDER_ID);
-            
-            const payload = {
-                order_id: ORDER_ID,
-                amount: currentOrder.total_price,
-                currency: 'IQD',
-                tip_amount: 0,
-                metadata: {
-                    return_url: window.location.href,
-                    webhook_url: `${BACKEND_BASE_URL}/api/payments/qclub/webhook`
-                }
-            };
-            
-            console.log('📤 Payload:', payload);
-            
-            const response = await fetch(`${API_BASE_URL}/payments/qclub/create-payment`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-            
-            console.log(`📊 Response Status: ${response.status}`);
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to create payment');
-            }
-            
-            const data = await response.json();
-            console.log('✅ Payment created:', data);
-            
-            if (!data.form_url) {
-                throw new Error('No payment form received. Please try again.');
-            }
-            
-            loadingText.textContent = 'Redirecting to QClub...';
-            
-            // Redirect to QClub payment form after a short delay
-            setTimeout(() => {
-                console.log('🔄 Redirecting to:', data.form_url);
-                window.location.href = data.form_url;
-            }, 1000);
-            
-        } catch (error) {
-            console.error('❌ Error:', error);
-            showError(error.message);
-            payBtn.disabled = false;
-            payBtn.textContent = 'Proceed to QClub Payment';
-            loadingSection.style.display = 'none';
+        if (!payRes.ok) {
+          let err = 'Payment failed';
+          try { err = (await payRes.json()).detail || err; } catch {}
+          throw new Error(err);
         }
+        const payData = await payRes.json();
+        if (!payData.form_url) throw new Error('No payment form received');
+        msg.textContent = 'Redirecting to payment...';
+        setTimeout(() => { window.location.href = payData.form_url; }, 800);
+      } catch (e) {
+        msg.textContent = e.message;
+      }
     }
-    
-    /**
-     * Show error message
-     */
-    function showError(message) {
-        const errorDiv = document.getElementById('error-message');
-        errorDiv.textContent = `⚠️ ${message}`;
-        errorDiv.style.display = 'block';
-        errorDiv.scrollIntoView({ behavior: 'smooth' });
-    }
-    
-    /**
-     * Show success message
-     */
-    function showSuccess(message) {
-        const successDiv = document.getElementById('success-message');
-        successDiv.textContent = `✅ ${message}`;
-        successDiv.style.display = 'block';
-    }
-    
-    // ========== PAGE INITIALIZATION ==========
-    
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('🚀 QClub Payment Page Loaded');
-        console.log('Backend:', BACKEND_BASE_URL);
-        
-        // Load order button
-        const loadBtn = document.getElementById('load-order-btn');
-        const orderInput = document.getElementById('order-id-input');
-        
-        // Load order on button click
-        loadBtn.addEventListener('click', () => {
-            const orderId = parseInt(orderInput.value);
-            
-            if (!orderId || orderId <= 0) {
-                showError('Please enter a valid order ID');
-                orderInput.focus();
-                return;
-            }
-            
-            loadOrderById(orderId);
-        });
-        
-        // Allow Enter key to load order
-        orderInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                loadBtn.click();
-            }
-        });
-        
-        // QClub payment button
-        const qclubPayBtn = document.getElementById('qclub-pay-btn');
-        qclubPayBtn.addEventListener('click', createQClubPayment);
-        
-        // Focus on input on page load
-        orderInput.focus();
+
+    payBtn.onclick = () => {
+      const orderId = orderIdInput.value.trim();
+      if (!orderId) {
+        msg.textContent = 'Please enter a valid order ID';
+        orderIdInput.focus();
+        return;
+      }
+      payBtn.disabled = true;
+      autoPay(orderId).finally(() => payBtn.disabled = false);
+    };
+
+    orderIdInput.addEventListener('keypress', e => {
+      if (e.key === 'Enter') payBtn.click();
     });
-</script>
-
+  </script>
 </body>
 </html>
 
