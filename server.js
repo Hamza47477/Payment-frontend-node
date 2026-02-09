@@ -46,7 +46,6 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`\n🚀 Payment Frontend Server Running`);
   console.log(`📍 Local: http://localhost:${PORT}`);
-  console.log(`🔑 Stripe: ${process.env.STRIPE_PUBLISHABLE_KEY ? 'Configured' : 'Not configured'}`);
   // Note: I changed the log below slightly to avoid crashing if BACKEND_API_URL is missing
   console.log(`🔗 Backend: ${process.env.BACKEND_API_URL || 'Not set'}\n`);
 });
