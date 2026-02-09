@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taken Cafe - Payment Gateway Selection</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 32px;
+            color: #1a1f36;
+        }
+
+        .subtitle {
+            color: #697386;
+            margin-top: 8px;
+            font-size: 16px;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+            font-size: 14px;
+            color: #1565c0;
+        }
+
+        .gateways {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .gateway-card {
+            padding: 20px;
+            border: 2px solid #e6ebf1;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .gateway-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .gateway-card.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .gateway-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .gateway-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1f36;
+            margin-bottom: 5px;
+        }
+
+        .gateway-desc {
+            font-size: 12px;
+            color: #697386;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 14px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .notes {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>☕ Taken Cafe</h1>
+        <p class="subtitle">Payment Gateway Selection</p>
+    </header>
+
+    <div class="info-box">
+        ℹ️ Select a payment gateway to test. Each gateway has its own dedicated testing interface.
+    </div>
+
+    <div style="text-align: center;">
+        <h2 style="font-size: 18px; color: #1a1f36; margin-bottom: 20px;">Choose Payment Method</h2>
+        
+        <div class="gateways">
+            <div class="gateway-card" onclick="selectGateway('ngenius', this)">
+                <div class="gateway-icon">🏦</div>
+                <div class="gateway-name">N-Genius</div>
+                <div class="gateway-desc">Network International</div>
+            </div>
+
+            <div class="gateway-card" onclick="selectGateway('stripe', this)">
+                <div class="gateway-icon">💳</div>
+                <div class="gateway-name">Stripe</div>
+                <div class="gateway-desc">International Payments</div>
+            </div>
+
+            <div class="gateway-card" onclick="selectGateway('qclub', this)">
+                <div class="gateway-icon">🎴</div>
+                <div class="gateway-name">QClub</div>
+                <div class="gateway-desc">Card & Apple Pay</div>
+            </div>
+        </div>
+
+        <button id="proceed-btn" class="btn-primary" disabled style="margin-top: 20px;">
+            Proceed to Payment
+        </button>
+    </div>
+
+    <div class="notes">
+        <strong>Testing Tips:</strong><br>
+        • Paste your JWT token in the payment page<br>
+        • Enter a valid Order ID<br>
+        • Complete the payment process
+    </div>
+</div>
+
+<script>
+    let selectedGateway = null;
+
+    function selectGateway(gateway, element) {
+        selectedGateway = gateway;
+        
+        // Update UI
+        document.querySelectorAll('.gateway-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        element.classList.add('active');
+        
+        // Enable proceed button
+        document.getElementById('proceed-btn').disabled = false;
+        document.getElementById('proceed-btn').textContent = `Go to ${gateway.charAt(0).toUpperCase() + gateway.slice(1)} Payment`;
+    }
+
+    document.getElementById('proceed-btn').addEventListener('click', () => {
+        const urls = {
+            'ngenius': 'index-ngenius.html',
+            'stripe': 'index-stripe.html',
+            'qclub': 'index-qclub.html'
+        };
+
+        if (selectedGateway && urls[selectedGateway]) {
+            window.location.href = urls[selectedGateway];
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taken Cafe - Payment</title>
+    <title>Taken Cafe - Payment - QClub</title>
     <style>
-        /* CSS STYLES */
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
             background-color: #f7f9fc; 
@@ -19,7 +18,7 @@
         .container { 
             background: white; 
             width: 100%; 
-            max-width: 480px; 
+            max-width: 600px; 
             padding: 30px; 
             border-radius: 12px; 
             box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
@@ -32,7 +31,7 @@
         
         h1 { 
             margin: 0; 
-            font-size: 24px; 
+            font-size: 28px; 
             color: #1a1f36; 
         }
         
@@ -42,10 +41,59 @@
             font-size: 14px; 
         }
         
+        /* JWT Token Section */
+        .jwt-section {
+            background: #f8f9fc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border-left: 4px solid #5469d4;
+        }
+        
+        .jwt-section h3 {
+            font-size: 16px;
+            margin: 0 0 12px 0;
+            color: #1a1f36;
+        }
+        
+        .jwt-section input {
+            width: 100%;
+            padding: 12px;
+            font-size: 13px;
+            border: 2px solid #e6ebf1;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .jwt-section input:focus {
+            outline: none;
+            border-color: #5469d4;
+            box-shadow: 0 0 0 3px rgba(84, 105, 212, 0.1);
+        }
+        
+        .jwt-status {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .jwt-status.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        
         /* Order Input Section */
         .order-input-section {
             text-align: center;
             padding: 20px 0;
+            display: none;
         }
         
         .order-input-section h2 {
@@ -92,100 +140,6 @@
             cursor: not-allowed;
         }
         
-        /* JWT Token Section */
-        .jwt-section {
-            text-align: center;
-            padding: 15px 0;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #e6ebf1;
-        }
-        
-        .jwt-section h3 {
-            font-size: 14px;
-            margin: 0 0 10px 0;
-            color: #1a1f36;
-        }
-        
-        .jwt-section input {
-            width: 100%;
-            padding: 10px;
-            font-size: 12px;
-            border: 2px solid #e6ebf1;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-family: 'Courier New', monospace;
-        }
-        
-        .jwt-section input:focus {
-            outline: none;
-            border-color: #5469d4;
-            box-shadow: 0 0 0 3px rgba(84, 105, 212, 0.1);
-        }
-        
-        .login-info {
-            background: #e7f3ff;
-            border: 1px solid #b3d9ff;
-            color: #0066cc;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 13px;
-            margin-bottom: 15px;
-        }
-        
-        .jwt-status {
-            background: #d4edda;
-            color: #155724;
-            padding: 8px;
-            border-radius: 6px;
-            font-size: 12px;
-            margin-top: 8px;
-            display: none;
-        }
-        
-        /* Gateway Selection */
-        .gateway-selector { 
-            margin-bottom: 30px; 
-            text-align: center; 
-            display: block; 
-        }
-        
-        .gateway-selector h2 {
-            font-size: 18px;
-            margin-bottom: 20px;
-            color: #1a1f36;
-        }
-        
-        .gateway-btn { 
-            padding: 12px 24px; 
-            margin: 0 10px; 
-            border: 2px solid #e6ebf1; 
-            background: white; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-size: 16px; 
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        .gateway-btn.active {
-            border-color: #5469d4;
-            background: #5469d4;
-            color: white;
-        }
-        
-        .gateway-btn:hover { 
-            border-color: #5469d4; 
-        }
-        
-        .gateway-info {
-            margin-top: 15px;
-            padding: 10px;
-            background: #f8f9fc;
-            border-radius: 6px;
-            font-size: 14px;
-            color: #697386;
-        }
-        
         /* Order Details Display */
         .order-details-display {
             background: #f8f9fc;
@@ -222,6 +176,57 @@
             color: #1a1f36;
             margin-top: 10px;
             border-top: 2px solid #e6ebf1;
+        }
+        
+        /* Gateway Selection */
+        .gateway-selector { 
+            margin: 30px 0; 
+            text-align: center;
+            display: none;
+        }
+        
+        .gateway-selector h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #1a1f36;
+        }
+        
+        .gateway-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .gateway-btn { 
+            padding: 15px; 
+            border: 2px solid #e6ebf1; 
+            background: white; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 14px; 
+            font-weight: 600;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .gateway-btn.active {
+            border-color: #5469d4;
+            background: #5469d4;
+            color: white;
+        }
+        
+        .gateway-btn:hover { 
+            border-color: #5469d4; 
+        }
+        
+        .gateway-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fc;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #697386;
         }
         
         #loading { 
@@ -271,7 +276,7 @@
 <div class="container">
     <header>
         <h1>☕ Taken Cafe</h1>
-        <p class="subtitle">Secure Checkout</p>
+        <p class="subtitle">Secure Checkout - QClub Payment</p>
     </header>
 
     <!-- Error Message Display -->
@@ -280,7 +285,7 @@
     <!-- Success Message Display -->
     <div id="success-message" class="success-message"></div>
 
-    <!-- JWT Token Section (First Step) -->
+    <!-- JWT Token Section (Step 1) -->
     <section class="jwt-section">
         <h3>🔐 Backend JWT Token</h3>
         <input 
@@ -292,9 +297,9 @@
         <div id="jwt-status" class="jwt-status"></div>
     </section>
 
-    <!-- Order ID Input Section (Second Step) -->
-    <section id="order-input-section" class="order-input-section" style="display: none;">
-        <h2>Enter Your Order ID</h2>
+    <!-- Order ID Input Section (Step 2) -->
+    <section id="order-input-section" class="order-input-section">
+        <h2>📦 Enter Your Order ID</h2>
         <input 
             type="number" 
             id="order-id-input" 
@@ -315,29 +320,23 @@
         </div>
     </div>
 
-    <!-- Gateway Selector (Second Step) -->
-    <section id="gateway-selector" class="gateway-selector">
-        <h2>Select Payment Gateway</h2>
-        <div>
-            <button class="gateway-btn active" onclick="selectGateway('ngenius')">
-                🏦 N-Genius
-            </button>
-            <button class="gateway-btn" onclick="selectGateway('stripe')">
-                💳 Stripe
-            </button>
-            <button class="gateway-btn" onclick="selectGateway('qclub')">
-                🎴 QClub
-            </button>
-        </div>
-        <div class="gateway-info">
-            <span id="gateway-info-text">Using Network International (N-Genius) for UAE payments</span>
+    <!-- QClub Payment Section -->
+    <section id="payment-section" class="gateway-selector">
+        <h2>💳 Process Payment with QClub</h2>
+        <button id="qclub-pay-btn" class="btn-primary" style="display: none;">
+            Complete Payment with QClub
+        </button>
+        <div id="qclub-info" style="display: none; margin-top: 15px; padding: 15px; background: #e3f2fd; border-radius: 6px; border-left: 4px solid #2196f3;">
+            <p style="margin: 0; font-size: 14px; color: #1565c0;">
+                ℹ️ You will be redirected to QClub payment form to complete your purchase.
+            </p>
         </div>
     </section>
 
     <!-- Loading Indicator -->
     <div id="loading">
         <div class="spinner"></div>
-        <p id="loading-text">Loading payment page...</p>
+        <p id="loading-text">Processing...</p>
     </div>
 </div>
 
@@ -345,80 +344,47 @@
     // ========== CONFIGURATION ==========
     const BACKEND_BASE_URL = 'https://livekit-mobile.linkedinwriter.io';
     const API_BASE_URL = `${BACKEND_BASE_URL}/api`;
-    const DEFAULT_GATEWAY = 'ngenius';
     
     // ========== STATE VARIABLES ==========
     let currentOrder = null;
     let ORDER_ID = null;
-        let jwtToken = null;
-        const loginBtn = document.getElementById('login-btn');
-        const authStatus = document.getElementById('auth-status');
-        const usernameInput = document.getElementById('username-input');
-        const passwordInput = document.getElementById('password-input');
+    let jwtToken = null;
+    let isAuthenticated = false;
+    
+    // ========== MAIN FUNCTIONS ==========
+    
+    /**
+     * Handle JWT token input - just store it when user pastes
+     */
+    function handleJWTToken() {
+        const jwtInput = document.getElementById('jwt-token-input');
+        const jwtStatus = document.getElementById('jwt-status');
+        const token = jwtInput.value.trim();
         
-        try {
-            loginBtn.disabled = true;
-            loginBtn.textContent = 'Authenticating...';
-            authStatus.style.display = 'none';
-            
-            console.log(`🔐 Authenticating user: ${username}`);
-            
-            // Create Basic Auth header
-            const credentials = btoa(`${username}:${password}`);
-            const authHeader = `Basic ${credentials}`;
-            
-            console.log(`📝 Auth Header: Basic ${username}:****`);
-            
-            // Test the connection with a simple auth test
-            // Most APIs will validate credentials on first request
-            const testResponse = await fetch(`${API_BASE_URL}/orders/1`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': authHeader,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            console.log(`📊 Auth Response Status: ${testResponse.status}`);
-            
-            if (testResponse.status === 401 || testResponse.status === 403) {
-                throw new Error('Invalid username or password. Please try again.');
-            }
-            
-            // Store credentials
-            authToken = authHeader;
-            isAuthenticated = true;
-            
-            console.log('✅ Authentication successful!');
-            
-            // Show success message
-            authStatus.textContent = `✅ Logged in as: ${username}`;
-            authStatus.style.display = 'block';
-            authStatus.style.background = '#d4edda';
-            authStatus.style.color = '#155724';
-            
-            // Hide login section, show order input section
-            setTimeout(() => {
-                document.getElementById('login-section').style.display = 'none';
-                document.getElementById('order-input-section').style.display = 'block';
-                usernameInput.value = '';
-                passwordInput.value = '';
-            }, 1000);
-            
-        } catch (error) {
-            console.error('❌ Authentication error:', error);
-            authStatus.textContent = `⚠️ ${error.message}`;
-            authStatus.style.display = 'block';
-            authStatus.style.background = '#f8d7da';
-            authStatus.style.color = '#721c24';
-            loginBtn.disabled = false;
-            loginBtn.textContent = 'Login';
+        if (!token) {
+            jwtStatus.textContent = '⚠️ Please paste your JWT token';
+            jwtStatus.classList.add('error');
+            jwtStatus.style.display = 'block';
+            isAuthenticated = false;
+            return;
         }
+        
+        // Store token
+        jwtToken = token;
+        isAuthenticated = true;
+        
+        jwtStatus.textContent = '✅ Token saved! Enter Order ID below.';
+        jwtStatus.classList.remove('error');
+        jwtStatus.style.display = 'block';
+        
+        console.log('✅ JWT Token stored');
+        
+        // Show order input section
+        document.getElementById('order-input-section').style.display = 'block';
     }
     
     /**
      * Load order details from backend API
-     * Fetches order from GET /api/orders/{order_id} endpoint
      */
     async function loadOrderById(orderId) {
         const loadingSection = document.getElementById('loading');
@@ -427,22 +393,24 @@
         const orderDetailsDisplay = document.getElementById('order-details-display');
         
         try {
+            if (!jwtToken) {
+                showError('JWT token not set. Please paste your token above.');
+                return;
+            }
+            
             loadBtn.disabled = true;
             loadBtn.textContent = 'Loading...';
             loadingSection.style.display = 'block';
             errorDiv.style.display = 'none';
             
-            // Construct the correct endpoint
             const endpoint = `${API_BASE_URL}/orders/${orderId}`;
             console.log(`🔍 API Request: GET ${endpoint}`);
-            console.log(`📍 Full URL: ${endpoint}`);
             
-            // Fetch order from backend using GET /api/orders/{order_id}
             const response = await fetch(endpoint, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': authToken // Include auth header
+                    'Authorization': `Bearer ${jwtToken}`
                 }
             });
             
@@ -453,8 +421,8 @@
                 
                 if (response.status === 404) {
                     errorMsg = `Order #${orderId} not found. Please check your order ID.`;
-                } else if (response.status === 403) {
-                    errorMsg = 'Access denied to this order.';
+                } else if (response.status === 401 || response.status === 403) {
+                    errorMsg = 'Invalid or expired JWT token. Please provide a valid token.';
                 } else if (response.status === 500) {
                     errorMsg = 'Server error. Please try again later.';
                 }
@@ -470,21 +438,17 @@
             // Display order details
             displayOrderDetails(currentOrder);
             
-            // Hide input section, show gateway selector and order details
+            // Show payment section
             document.getElementById('order-input-section').style.display = 'none';
             orderDetailsDisplay.style.display = 'block';
-            document.getElementById('gateway-selector').style.display = 'block';
+            document.getElementById('payment-section').style.display = 'block';
+            document.getElementById('qclub-pay-btn').style.display = 'block';
+            document.getElementById('qclub-info').style.display = 'block';
             loadingSection.style.display = 'none';
-            
-            // Auto-redirect to payment page after 2 seconds
-            setTimeout(() => {
-                selectGateway(DEFAULT_GATEWAY);
-            }, 2000);
             
         } catch (error) {
             console.error('❌ Error loading order:', error);
-            errorDiv.textContent = `⚠️ ${error.message}`;
-            errorDiv.style.display = 'block';
+            showError(error.message);
             loadBtn.disabled = false;
             loadBtn.textContent = 'Load Order';
             loadingSection.style.display = 'none';
@@ -492,7 +456,7 @@
     }
     
     /**
-     * Display order details in the preview section
+     * Display order details
      */
     function displayOrderDetails(order) {
         const itemsList = document.getElementById('order-items-list');
@@ -520,40 +484,73 @@
     }
     
     /**
-     * Select payment gateway and redirect
+     * Create QClub payment session
      */
-    function selectGateway(gateway) {
-        console.log('🏦 Selected gateway:', gateway);
+    async function createQClubPayment() {
+        const payBtn = document.getElementById('qclub-pay-btn');
+        const loadingSection = document.getElementById('loading');
         
-        if (!ORDER_ID) {
-            console.error('❌ No order ID set');
-            return;
-        }
-        
-        // Update button states
-        document.getElementById('gateway-ngenius').classList.toggle('active', gateway === 'ngenius');
-        document.getElementById('gateway-stripe').classList.toggle('active', gateway === 'stripe');
-        
-        // Update info text
-        const infoText = document.getElementById('gateway-info-text');
-        if (gateway === 'ngenius') {
-            infoText.textContent = 'Using Network International (N-Genius) for UAE payments';
-        } else {
-            infoText.textContent = 'Using Stripe for international payments';
-        }
-        
-        // Show loading
-        document.getElementById('loading').style.display = 'block';
-        document.getElementById('loading-text').textContent = `Redirecting to ${gateway === 'ngenius' ? 'N-Genius' : 'Stripe'} payment...`;
-        
-        // Redirect to appropriate payment page with order ID and backend URL
-        setTimeout(() => {
-            if (gateway === 'ngenius') {
-                window.location.href = `index-ngenius.html?order_id=${ORDER_ID}&backend_base_url=${encodeURIComponent(BACKEND_BASE_URL)}`;
-            } else {
-                window.location.href = `index-stripe.html?order_id=${ORDER_ID}&backend_base_url=${encodeURIComponent(BACKEND_BASE_URL)}`;
+        try {
+            if (!jwtToken || !ORDER_ID || !currentOrder) {
+                showError('Missing required information. Please start over.');
+                return;
             }
-        }, 500);
+            
+            payBtn.disabled = true;
+            payBtn.textContent = 'Creating Payment...';
+            loadingSection.style.display = 'block';
+            
+            console.log('💳 Creating QClub payment for order:', ORDER_ID);
+            
+            const payload = {
+                order_id: ORDER_ID,
+                amount: currentOrder.total_price,
+                currency: 'IQD',
+                tip_amount: 0,
+                metadata: {
+                    return_url: window.location.href,
+                    webhook_url: `${BACKEND_BASE_URL}/api/payments/qclub/webhook`
+                }
+            };
+            
+            console.log('📤 Payload:', payload);
+            
+            const response = await fetch(`${API_BASE_URL}/payments/qclub/create-payment`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${jwtToken}`
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            console.log(`📊 Response Status: ${response.status}`);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Failed to create payment');
+            }
+            
+            const data = await response.json();
+            console.log('✅ Payment created:', data);
+            
+            if (!data.form_url) {
+                throw new Error('No payment form URL received from server');
+            }
+            
+            // Redirect to QClub payment form
+            showSuccess('Redirecting to QClub payment form...');
+            setTimeout(() => {
+                window.location.href = data.form_url;
+            }, 1500);
+            
+        } catch (error) {
+            console.error('❌ Error creating payment:', error);
+            showError(error.message);
+            payBtn.disabled = false;
+            payBtn.textContent = 'Complete Payment with QClub';
+            loadingSection.style.display = 'none';
+        }
     }
     
     /**
@@ -563,6 +560,9 @@
         const errorDiv = document.getElementById('error-message');
         errorDiv.textContent = `⚠️ ${message}`;
         errorDiv.style.display = 'block';
+        
+        // Scroll to error
+        errorDiv.scrollIntoView({ behavior: 'smooth' });
     }
     
     /**
@@ -577,45 +577,24 @@
     // ========== PAGE INITIALIZATION ==========
     
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('🚀 Payment Frontend Initialized');
+        console.log('🚀 QClub Payment Frontend Initialized');
         console.log('Backend URL:', BACKEND_BASE_URL);
         console.log('API Base URL:', API_BASE_URL);
         
-        // Setup login button
-        const loginBtn = document.getElementById('login-btn');
-        const usernameInput = document.getElementById('username-input');
-        const passwordInput = document.getElementById('password-input');
-        
-        loginBtn.addEventListener('click', () => {
-            const username = usernameInput.value.trim();
-            const password = passwordInput.value.trim();
-            
-            if (!username || !password) {
-                const authStatus = document.getElementById('auth-status');
-                authStatus.textContent = '⚠️ Please enter both username and password';
-                authStatus.style.display = 'block';
-                authStatus.style.background = '#fff3cd';
-                authStatus.style.color = '#856404';
-                return;
-            }
-            
-            authenticateUser(username, password);
+        // JWT Token input handler
+        const jwtInput = document.getElementById('jwt-token-input');
+        jwtInput.addEventListener('input', handleJWTToken);
+        jwtInput.addEventListener('paste', () => {
+            setTimeout(handleJWTToken, 100);
         });
         
-        // Allow Enter key on password field to login
-        passwordInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                loginBtn.click();
-            }
-        });
-        
-        // Setup load button click handler
+        // Load order button
         const loadBtn = document.getElementById('load-order-btn');
         const orderInput = document.getElementById('order-id-input');
         
         loadBtn.addEventListener('click', () => {
             if (!isAuthenticated) {
-                showError('Please login first');
+                showError('Please paste your JWT token first');
                 return;
             }
             
@@ -636,13 +615,9 @@
             }
         });
         
-        // Clear error message when user starts typing
-        orderInput.addEventListener('input', () => {
-            const errorDiv = document.getElementById('error-message');
-            if (errorDiv.style.display === 'block') {
-                errorDiv.style.display = 'none';
-            }
-        });
+        // QClub payment button
+        const qclubPayBtn = document.getElementById('qclub-pay-btn');
+        qclubPayBtn.addEventListener('click', createQClubPayment);
     });
 </script>
 
